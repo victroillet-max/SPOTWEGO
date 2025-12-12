@@ -1,0 +1,3101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotwego Curator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'spot-burgundy': '#6B4444',
+                        'spot-maroon': '#7A4848',
+                        'spot-rose': '#C4A4A4',
+                        'spot-cream': '#FAF7F5',
+                        'spot-beige': '#F5F0ED',
+                        'spot-dark': '#3D2929',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .sidebar-link { transition: all 0.2s; }
+        .sidebar-link:hover { background: rgba(255,255,255,0.1); }
+        .sidebar-link.active { background: rgba(255,255,255,0.15); border-right: 3px solid #C4A4A4; }
+        .card { transition: box-shadow 0.2s; }
+        .card:hover { box-shadow: 0 4px 20px rgba(107,68,68,0.12); }
+        .slider { -webkit-appearance: none; height: 6px; background: #e5e7eb; border-radius: 3px; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: #6B4444; border-radius: 50%; cursor: pointer; }
+        #map { height: 450px; border-radius: 12px; }
+        .hidden { display: none !important; pointer-events: none !important; }
+        #toast.opacity-0, #toast.translate-y-20 { pointer-events: none !important; }
+        .modal-backdrop { background: rgba(0,0,0,0.5); }
+        .city-card { transition: all 0.2s; }
+        .city-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(107,68,68,0.15); }
+        .progress-step { transition: all 0.3s; }
+        .progress-step.active { color: #6B4444; font-weight: 600; }
+        .progress-step.completed { color: #22c55e; }
+        .progress-step.pending { color: #9ca3af; }
+    </style>
+</head>
+<body class="bg-gray-50">
+<div class="flex h-screen">
+    <!-- Simplified Sidebar -->
+    <aside class="w-56 bg-spot-burgundy text-white flex flex-col">
+        <div class="p-5 border-b border-spot-maroon">
+            <div class="font-semibold text-xl tracking-wide">Spotwego</div>
+            <div class="text-xs text-spot-rose">Curator Dashboard</div>
+        </div>
+        
+        <nav class="flex-1 py-6">
+            <a href="#" onclick="showSection('cities')" class="sidebar-link active flex items-center px-6 py-3 text-sm text-white/90 hover:text-white" data-section="cities">
+                <svg class="w-5 h-5 mr-3 text-spot-rose" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Cities
+            </a>
+            
+            <a href="#" onclick="showSection('rankings')" class="sidebar-link flex items-center px-6 py-3 text-sm text-white/90 hover:text-white" data-section="rankings">
+                <svg class="w-5 h-5 mr-3 text-spot-rose" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                Rankings
+            </a>
+            
+            <a href="#" onclick="showSection('weights')" class="sidebar-link flex items-center px-6 py-3 text-sm text-white/90 hover:text-white" data-section="weights">
+                <svg class="w-5 h-5 mr-3 text-spot-rose" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                Weights
+            </a>
+            
+            <a href="#" onclick="showSection('emails')" class="sidebar-link flex items-center px-6 py-3 text-sm text-white/90 hover:text-white" data-section="emails">
+                <svg class="w-5 h-5 mr-3 text-spot-rose" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                Emails
+            </a>
+            
+            <a href="#" onclick="showSection('settings')" class="sidebar-link flex items-center px-6 py-3 text-sm text-white/90 hover:text-white" data-section="settings">
+                <svg class="w-5 h-5 mr-3 text-spot-rose" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Settings
+            </a>
+            
+            <a href="#" onclick="showSection('monitoring')" class="sidebar-link flex items-center px-6 py-3 text-sm text-white/90 hover:text-white" data-section="monitoring">
+                <svg class="w-5 h-5 mr-3 text-spot-rose" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Monitoring
+            </a>
+            
+            <a href="#" onclick="showSection('advanced')" class="sidebar-link flex items-center px-6 py-3 text-sm text-white/90 hover:text-white" data-section="advanced">
+                <svg class="w-5 h-5 mr-3 text-spot-rose" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                Advanced
+            </a>
+        </nav>
+        
+        <div class="p-4 border-t border-spot-maroon">
+            <a href="/?v=1" class="text-xs text-spot-rose hover:text-white">Classic Dashboard</a>
+            <div class="text-xs text-spot-rose mt-1">Version 4.3</div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto bg-spot-cream">
+        <!-- Top Bar -->
+        <header class="bg-white border-b px-8 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-semibold text-gray-800" id="pageTitle">Cities</h1>
+            <div class="flex items-center gap-4">
+                <!-- Refresh -->
+                <button onclick="refreshCurrentSection()" class="p-2 hover:bg-gray-100 rounded-lg" title="Refresh">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="p-8">
+            <!-- ==================== CITIES SECTION ==================== -->
+            <section id="section-cities" class="section">
+                <!-- Collection Mode Toggle -->
+                <div class="bg-white rounded-xl border p-6 mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold">Add New City</h2>
+                        <div class="flex gap-2 bg-gray-100 rounded-lg p-1">
+                            <button onclick="setCollectionMode('cost')" id="mode-cost" class="px-3 py-1.5 text-sm rounded-md bg-white shadow font-medium">Cost Optimized</button>
+                            <button onclick="setCollectionMode('quick')" id="mode-quick" class="px-3 py-1.5 text-sm rounded-md text-gray-600">Quick Search</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Cost Optimized Mode (Two-Step) -->
+                    <div id="cost-mode-panel">
+                        <p class="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg mb-4">
+                            <strong>Cost Optimized:</strong> First searches for FREE (names only), then you select which restaurants to fetch details for (paid).
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">City Name</label>
+                                <input type="text" id="cost-city-name" class="w-full border rounded-lg px-4 py-2.5" placeholder="e.g., Geneva">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                <select id="cost-country" class="w-full border rounded-lg px-4 py-2.5">
+                                    <option value="Switzerland">Switzerland</option>
+                                    <option value="France">France</option>
+                                    <option value="Germany">Germany</option>
+                                    <option value="Italy">Italy</option>
+                                    <option value="UK">United Kingdom</option>
+                                    <option value="Spain">Spain</option>
+                                    <option value="USA">United States</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Radius</label>
+                                <select id="cost-radius" class="w-full border rounded-lg px-4 py-2.5">
+                                    <option value="5">5 km</option>
+                                    <option value="10" selected>10 km</option>
+                                    <option value="20">20 km</option>
+                                    <option value="50">50 km</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Max Preview</label>
+                                <select id="cost-max-results" class="w-full border rounded-lg px-4 py-2.5">
+                                    <option value="100">100</option>
+                                    <option value="200" selected>200</option>
+                                    <option value="500">500</option>
+                                    <option value="1000">1000</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button onclick="startCostOptimizedSearch()" class="w-full bg-green-600 text-white px-6 py-2.5 rounded-lg hover:bg-green-700 transition font-medium">
+                                    Preview (FREE)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Search Mode (Single Request) -->
+                    <div id="quick-mode-panel" class="hidden">
+                        <p class="text-sm text-purple-600 bg-purple-50 px-3 py-2 rounded-lg mb-4">
+                            <strong>Quick Search:</strong> One API call fetches all details. Filter by minimum rating and reviews.
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">City Name</label>
+                                <input type="text" id="quick-city-name" class="w-full border rounded-lg px-4 py-2.5" placeholder="e.g., Geneva">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                <select id="quick-country" class="w-full border rounded-lg px-4 py-2.5">
+                                    <option value="Switzerland">Switzerland</option>
+                                    <option value="France">France</option>
+                                    <option value="Germany">Germany</option>
+                                    <option value="Italy">Italy</option>
+                                    <option value="UK">United Kingdom</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Min Rating</label>
+                                <select id="quick-min-rating" class="w-full border rounded-lg px-4 py-2.5">
+                                    <option value="0">Any</option>
+                                    <option value="3.5">3.5+</option>
+                                    <option value="4.0" selected>4.0+</option>
+                                    <option value="4.3">4.3+</option>
+                                    <option value="4.5">4.5+</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Min Reviews</label>
+                                <select id="quick-min-reviews" class="w-full border rounded-lg px-4 py-2.5">
+                                    <option value="0">Any</option>
+                                    <option value="25">25+</option>
+                                    <option value="50" selected>50+</option>
+                                    <option value="100">100+</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Max Results</label>
+                                <select id="quick-max-results" class="w-full border rounded-lg px-4 py-2.5">
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                    <option value="100" selected>100</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button onclick="startQuickSearch()" class="w-full bg-purple-600 text-white px-6 py-2.5 rounded-lg hover:bg-purple-700 transition font-medium">
+                                    Search (Paid)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Your Cities Grid -->
+                <div class="mb-4 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold">Your Cities</h2>
+                    <div class="flex items-center gap-4">
+                        <button onclick="mergeRegionDuplicates()" class="text-sm text-spot-burgundy hover:underline">Merge Duplicates</button>
+                        <span id="cities-count" class="text-sm text-gray-500">0 cities</span>
+                    </div>
+                </div>
+                
+                <div id="cities-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <!-- City cards will be loaded here -->
+                    <div class="text-center py-12 text-gray-400 col-span-full">
+                        No cities yet. Add your first city above.
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== RANKINGS SECTION ==================== -->
+            <section id="section-rankings" class="section hidden">
+                <!-- Filters Bar -->
+                <div class="bg-white rounded-xl border p-4 mb-6 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <select id="rankings-city-filter" class="border rounded-lg px-4 py-2" onchange="loadRankings()">
+                            <option value="">All Cities</option>
+                        </select>
+                        <select id="rankings-status-filter" class="border rounded-lg px-4 py-2" onchange="filterRankingsDisplay()">
+                            <option value="">All Status</option>
+                            <option value="published">Published</option>
+                            <option value="pending">Pending Review</option>
+                            <option value="excluded">Excluded</option>
+                        </select>
+                        <input type="text" id="rankings-search" class="border rounded-lg px-4 py-2 w-64" placeholder="Search restaurants..." oninput="filterRankingsDisplay()">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openWeightsPanel()" class="border px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                            Ranking Settings
+                        </button>
+                        <button onclick="publishSelected()" class="bg-spot-burgundy text-white px-4 py-2 rounded-lg hover:bg-spot-dark">
+                            Publish Selected
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Rankings Table -->
+                <div class="bg-white rounded-xl border overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10">
+                                    <input type="checkbox" id="select-all-rankings" onchange="toggleSelectAllRankings()">
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Restaurant</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">City</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Google</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reviews</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase" title="Sentiment from review text analysis">Sentiment</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rankings-table-body">
+                            <tr><td colspan="10" class="px-4 py-8 text-center text-gray-400">Loading rankings...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Ranking Stats Footer -->
+                <div class="mt-4 flex justify-between items-center text-sm text-gray-500">
+                    <span id="rankings-summary">0 restaurants total</span>
+                    <div class="flex gap-4">
+                        <span id="rankings-published-count">0 published</span>
+                        <span id="rankings-pending-count">0 pending</span>
+                        <span id="rankings-excluded-count">0 excluded</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== WEIGHTS SECTION ==================== -->
+            <section id="section-weights" class="section hidden">
+                <div class="max-w-4xl">
+                    <div class="bg-white rounded-xl border p-6 mb-6">
+                        <h2 class="text-lg font-semibold mb-2">Ranking Weights Configuration</h2>
+                        <p class="text-sm text-gray-500 mb-6">Adjust how different factors contribute to the overall restaurant score. All weights should sum to 100%.</p>
+                        
+                        <!-- Source Weights -->
+                        <div class="mb-8">
+                            <h3 class="font-medium mb-4">Data Source Weights</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <label>Google Rating</label>
+                                        <span id="weight-google-value">25%</span>
+                                    </div>
+                                    <input type="range" id="weight-google" min="0" max="100" value="25" class="w-full" oninput="updateWeightDisplay('google')">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <label>Yelp Rating</label>
+                                        <span id="weight-yelp-value">20%</span>
+                                    </div>
+                                    <input type="range" id="weight-yelp" min="0" max="100" value="20" class="w-full" oninput="updateWeightDisplay('yelp')">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <label>TripAdvisor Rating</label>
+                                        <span id="weight-tripadvisor-value">25%</span>
+                                    </div>
+                                    <input type="range" id="weight-tripadvisor" min="0" max="100" value="25" class="w-full" oninput="updateWeightDisplay('tripadvisor')">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Review Analysis Weights -->
+                        <div class="mb-8">
+                            <h3 class="font-medium mb-4">Review Analysis Weights</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <label>User Reviews (Internal)</label>
+                                        <span id="weight-user-reviews-value">15%</span>
+                                    </div>
+                                    <input type="range" id="weight-user-reviews" min="0" max="100" value="15" class="w-full" oninput="updateWeightDisplay('user-reviews')">
+                                </div>
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <label class="font-medium text-blue-800">Text Sentiment Analysis (NLP)</label>
+                                        <span id="weight-sentiment-value" class="font-medium text-blue-800">10%</span>
+                                    </div>
+                                    <input type="range" id="weight-sentiment" min="0" max="100" value="10" class="w-full" oninput="updateWeightDisplay('sentiment')">
+                                    <p class="text-xs text-blue-600 mt-2">Weight of NLP-analyzed sentiment from written reviews. Higher values give more importance to what reviewers write vs. star ratings.</p>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <label>Data Quality Score</label>
+                                        <span id="weight-quality-value">5%</span>
+                                    </div>
+                                    <input type="range" id="weight-quality" min="0" max="100" value="5" class="w-full" oninput="updateWeightDisplay('quality')">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Text vs Stars Balance -->
+                        <div class="mb-8 bg-purple-50 p-4 rounded-lg">
+                            <h3 class="font-medium mb-2 text-purple-800">Text vs Stars Balance</h3>
+                            <p class="text-sm text-purple-600 mb-4">When analyzing reviews, how much weight should the written text have compared to the star rating?</p>
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm text-purple-700">Stars Only</span>
+                                <input type="range" id="weight-text-sentiment" min="0" max="100" value="50" class="flex-1" oninput="updateTextSentimentDisplay()">
+                                <span class="text-sm text-purple-700">Text Only</span>
+                            </div>
+                            <div class="text-center mt-2">
+                                <span id="weight-text-sentiment-value" class="text-sm font-medium text-purple-800">50% text / 50% stars</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Minimum Thresholds -->
+                        <div class="mb-8">
+                            <h3 class="font-medium mb-4">Minimum Thresholds</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Reviews for Ranking</label>
+                                    <select id="min-reviews-threshold" class="w-full border rounded-lg px-4 py-2">
+                                        <option value="0">No minimum</option>
+                                        <option value="5" selected>5 reviews</option>
+                                        <option value="10">10 reviews</option>
+                                        <option value="25">25 reviews</option>
+                                        <option value="50">50 reviews</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Rating to Display</label>
+                                    <select id="min-rating-display" class="w-full border rounded-lg px-4 py-2">
+                                        <option value="0">No minimum</option>
+                                        <option value="3.0">3.0+</option>
+                                        <option value="3.5">3.5+</option>
+                                        <option value="4.0" selected>4.0+</option>
+                                        <option value="4.5">4.5+</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Summary -->
+                        <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                            <h3 class="font-medium mb-2">Weight Summary</h3>
+                            <div class="flex items-center gap-2">
+                                <span>Total:</span>
+                                <span id="weights-total" class="font-bold">100%</span>
+                                <span id="weights-warning" class="text-red-500 text-sm hidden">(Should equal 100%)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="saveWeights()" class="bg-spot-burgundy text-white px-6 py-2 rounded-lg hover:bg-spot-dark">
+                                Save Weights
+                            </button>
+                            <button onclick="resetWeights()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">
+                                Reset to Defaults
+                            </button>
+                            <button onclick="recomputeWithNewWeights()" class="border px-4 py-2 rounded-lg hover:bg-gray-50 text-spot-burgundy">
+                                Recompute All Rankings
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Impact -->
+                    <div class="bg-white rounded-xl border p-6">
+                        <h2 class="text-lg font-semibold mb-4">Weight Impact Preview</h2>
+                        <p class="text-sm text-gray-500 mb-4">See how your weights affect restaurant rankings.</p>
+                        <div id="weights-preview" class="space-y-2">
+                            <div class="text-gray-400 text-center py-4">Adjust weights and save to see impact</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== SETTINGS SECTION ==================== -->
+            <section id="section-settings" class="section hidden">
+                <!-- API Keys -->
+                <div class="bg-white rounded-xl border p-6 mb-6">
+                    <h2 class="text-lg font-semibold mb-4">API Keys</h2>
+                    <p class="text-sm text-gray-500 mb-4">Connect your data sources to collect restaurant information.</p>
+                    
+                    <div id="api-keys-list" class="space-y-3 mb-6">
+                        <!-- API keys loaded here -->
+                    </div>
+                    
+                    <div class="border-t pt-4">
+                        <h3 class="font-medium mb-3">Add New Key</h3>
+                        <form onsubmit="saveApiKey(event)" class="flex gap-3">
+                            <select id="key-provider" class="border rounded-lg px-4 py-2">
+                                <option value="google_places">Google Places</option>
+                                <option value="yelp">Yelp</option>
+                                <option value="tripadvisor">TripAdvisor</option>
+                            </select>
+                            <input type="text" id="key-value" class="flex-1 border rounded-lg px-4 py-2" placeholder="Enter API key">
+                            <button type="submit" class="bg-spot-burgundy text-white px-6 py-2 rounded-lg hover:bg-spot-dark">Add Key</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Website Connection -->
+                <div class="bg-white rounded-xl border p-6 mb-6">
+                    <h2 class="text-lg font-semibold mb-4">Website Connection</h2>
+                    <p class="text-sm text-gray-500 mb-4">Configure where to publish your restaurant rankings.</p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                            <input type="text" id="website-url" class="w-full border rounded-lg px-4 py-2" placeholder="https://yourwebsite.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">API Endpoint</label>
+                            <input type="text" id="website-endpoint" class="w-full border rounded-lg px-4 py-2" placeholder="/api/restaurants/import" value="/api/restaurants/import">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">API Key / Token</label>
+                            <input type="password" id="website-api-key" class="w-full border rounded-lg px-4 py-2" placeholder="Your website API key">
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="testWebsiteConnection()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">Test Connection</button>
+                            <button onclick="saveWebsiteConfig()" class="bg-spot-burgundy text-white px-6 py-2 rounded-lg hover:bg-spot-dark">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email Settings -->
+                <div class="bg-white rounded-xl border p-6 mb-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-lg font-semibold">Email Notifications</h2>
+                            <p class="text-sm text-gray-500">Automatically notify restaurants when they're listed.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-500">Master Toggle:</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="email-enabled-setting" class="sr-only peer" onchange="saveEmailSettings()">
+                                <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-green-500 after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
+                                <input type="text" id="smtp-host" class="w-full border rounded-lg px-4 py-2" placeholder="smtp.gmail.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
+                                <input type="number" id="smtp-port" class="w-full border rounded-lg px-4 py-2" placeholder="587" value="587">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username / Email</label>
+                                <input type="text" id="smtp-user" class="w-full border rounded-lg px-4 py-2" placeholder="your@email.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" id="smtp-pass" class="w-full border rounded-lg px-4 py-2" placeholder="App password">
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="testEmailSettings()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">Send Test Email</button>
+                            <button onclick="saveEmailSettings()" class="bg-spot-burgundy text-white px-6 py-2 rounded-lg hover:bg-spot-dark">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ranking Defaults -->
+                <div class="bg-white rounded-xl border p-6">
+                    <h2 class="text-lg font-semibold mb-4">Ranking Defaults</h2>
+                    <p class="text-sm text-gray-500 mb-4">Set the default criteria for filtering and ranking restaurants.</p>
+                    
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Rating</label>
+                            <select id="default-min-rating" class="w-full border rounded-lg px-4 py-2">
+                                <option value="3.5">3.5 stars</option>
+                                <option value="4.0" selected>4.0 stars</option>
+                                <option value="4.2">4.2 stars</option>
+                                <option value="4.5">4.5 stars</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Reviews</label>
+                            <select id="default-min-reviews" class="w-full border rounded-lg px-4 py-2">
+                                <option value="10">10 reviews</option>
+                                <option value="25">25 reviews</option>
+                                <option value="50" selected>50 reviews</option>
+                                <option value="100">100 reviews</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Google Weight</label>
+                            <input type="range" id="weight-google" min="0" max="100" value="80" class="w-full slider" oninput="updateWeightDisplay('google')">
+                            <div class="flex justify-between text-xs text-gray-500">
+                                <span>0%</span>
+                                <span id="weight-google-val">80%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Review Count Weight</label>
+                            <input type="range" id="weight-reviews" min="0" max="100" value="20" class="w-full slider" oninput="updateWeightDisplay('reviews')">
+                            <div class="flex justify-between text-xs text-gray-500">
+                                <span>0%</span>
+                                <span id="weight-reviews-val">20%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button onclick="saveRankingDefaults()" class="bg-spot-burgundy text-white px-6 py-2 rounded-lg hover:bg-spot-dark">Save Defaults</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== EMAILS SECTION ==================== -->
+            <section id="section-emails" class="section hidden">
+                <!-- Email Master Toggle -->
+                <div class="bg-white rounded-xl border p-6 mb-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold">Email Sending</h2>
+                            <p class="text-sm text-gray-500">Enable or disable all outgoing emails from this dashboard.</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span id="email-global-status" class="text-sm font-medium text-red-600">DISABLED</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="email-master-toggle" class="sr-only peer" onchange="toggleEmailMaster()">
+                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-green-500 after:content-[''] after:absolute after:top-[3px] after:left-[4px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SMTP Configuration -->
+                <div class="bg-white rounded-xl border p-6 mb-6">
+                    <h2 class="text-lg font-semibold mb-4">SMTP Configuration</h2>
+                    <p class="text-sm text-gray-500 mb-4">Configure your email server settings.</p>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
+                            <input type="text" id="smtp-host" class="w-full border rounded-lg px-4 py-2" placeholder="smtp.gmail.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
+                            <input type="number" id="smtp-port" class="w-full border rounded-lg px-4 py-2" placeholder="587" value="587">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Username / Email</label>
+                            <input type="text" id="smtp-user" class="w-full border rounded-lg px-4 py-2" placeholder="your@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input type="password" id="smtp-pass" class="w-full border rounded-lg px-4 py-2" placeholder="App password">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">From Name</label>
+                            <input type="text" id="smtp-from-name" class="w-full border rounded-lg px-4 py-2" placeholder="Spotwego Team">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">From Email</label>
+                            <input type="email" id="smtp-from-email" class="w-full border rounded-lg px-4 py-2" placeholder="hello@spotwego.com">
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="testEmailSettings()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">Send Test Email</button>
+                        <button onclick="saveEmailSettings()" class="bg-spot-burgundy text-white px-6 py-2 rounded-lg hover:bg-spot-dark">Save Settings</button>
+                    </div>
+                </div>
+
+                <!-- Email Templates -->
+                <div class="bg-white rounded-xl border p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-lg font-semibold">Email Templates</h2>
+                            <p class="text-sm text-gray-500">Manage your email templates for different purposes.</p>
+                        </div>
+                        <button onclick="createNewTemplate()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">+ New Template</button>
+                    </div>
+                    
+                    <div id="email-templates-list" class="space-y-3">
+                        <!-- Welcome Email Template -->
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <h3 class="font-medium">Welcome Email</h3>
+                                    <p class="text-sm text-gray-500">Sent to restaurants when they are first listed</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="editTemplate('welcome')" class="text-sm text-spot-burgundy hover:underline">Edit</button>
+                                    <button onclick="previewTemplate('welcome')" class="text-sm text-gray-500 hover:underline">Preview</button>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-400">Last updated: Never</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== MONITORING SECTION ==================== -->
+            <section id="section-monitoring" class="section hidden">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white rounded-xl border p-5">
+                        <div class="text-sm text-gray-500 mb-1">API Cost (This Month)</div>
+                        <div class="text-2xl font-bold text-spot-burgundy" id="stat-api-cost">$0.00</div>
+                    </div>
+                    <div class="bg-white rounded-xl border p-5">
+                        <div class="text-sm text-gray-500 mb-1">Total Restaurants</div>
+                        <div class="text-2xl font-bold" id="stat-restaurants">0</div>
+                    </div>
+                    <div class="bg-white rounded-xl border p-5">
+                        <div class="text-sm text-gray-500 mb-1">Published</div>
+                        <div class="text-2xl font-bold text-green-600" id="stat-published">0</div>
+                    </div>
+                    <div class="bg-white rounded-xl border p-5">
+                        <div class="text-sm text-gray-500 mb-1">Cities</div>
+                        <div class="text-2xl font-bold" id="stat-cities">0</div>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="bg-white rounded-xl border p-6 mb-6">
+                    <h2 class="text-lg font-semibold mb-4">Recent Activity</h2>
+                    <div id="activity-log" class="space-y-3">
+                        <div class="text-gray-400 text-center py-4">No recent activity</div>
+                    </div>
+                </div>
+
+                <!-- System Health -->
+                <div class="bg-white rounded-xl border p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">System Health</h2>
+                        <button onclick="openHealthModal()" class="text-sm text-spot-burgundy hover:underline">View Details</button>
+                    </div>
+                    <div id="health-status" class="grid grid-cols-2 md:grid-cols-4 gap-4 cursor-pointer" onclick="openHealthModal()">
+                        <div class="flex items-center gap-2 hover:bg-gray-50 p-2 rounded">
+                            <div class="w-3 h-3 rounded-full bg-gray-300" id="health-db"></div>
+                            <span class="text-sm">Database</span>
+                        </div>
+                        <div class="flex items-center gap-2 hover:bg-gray-50 p-2 rounded">
+                            <div class="w-3 h-3 rounded-full bg-gray-300" id="health-google"></div>
+                            <span class="text-sm">Google API</span>
+                        </div>
+                        <div class="flex items-center gap-2 hover:bg-gray-50 p-2 rounded">
+                            <div class="w-3 h-3 rounded-full bg-gray-300" id="health-website"></div>
+                            <span class="text-sm">Website</span>
+                        </div>
+                        <div class="flex items-center gap-2 hover:bg-gray-50 p-2 rounded">
+                            <div class="w-3 h-3 rounded-full bg-gray-300" id="health-email"></div>
+                            <span class="text-sm">Email</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">Click for detailed diagnostics</p>
+                </div>
+
+                <!-- Cost Breakdown -->
+                <div class="bg-white rounded-xl border p-6 mt-6">
+                    <h2 class="text-lg font-semibold mb-4">Cost Breakdown</h2>
+                    <div id="cost-breakdown" class="space-y-2">
+                        <div class="text-gray-400 text-center py-4">No API usage recorded</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== ADVANCED SECTION ==================== -->
+            <section id="section-advanced" class="section hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Sentiment Analysis -->
+                    <div class="bg-white rounded-xl border p-6">
+                        <h2 class="text-lg font-semibold mb-4">Sentiment Analysis</h2>
+                        <p class="text-sm text-gray-500 mb-4">Analyze review text sentiment with NLP.</p>
+                        <div class="space-y-3">
+                            <button onclick="reanalyzeAllReviews()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Reanalyze All Reviews with NLP
+                            </button>
+                            <button onclick="openSentimentTester()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Test Sentiment Analysis
+                            </button>
+                            <button onclick="openKeywordManager()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Manage Custom Keywords
+                            </button>
+                        </div>
+                        <div id="sentiment-stats" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
+                            <div class="text-sm font-medium mb-2">Sentiment Statistics</div>
+                            <div id="sentiment-stats-content"></div>
+                        </div>
+                    </div>
+
+                    <!-- Data Management -->
+                    <div class="bg-white rounded-xl border p-6">
+                        <h2 class="text-lg font-semibold mb-4">Data Management</h2>
+                        <p class="text-sm text-gray-500 mb-4">Backup, restore, and clean data.</p>
+                        <div class="space-y-3">
+                            <button onclick="downloadBackup()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Download Backup
+                            </button>
+                            <button onclick="openRestoreModal()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Restore from Backup
+                            </button>
+                            <button onclick="checkDuplicates()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Check for Duplicates
+                            </button>
+                            <button onclick="clearCostHistory()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left text-orange-600">
+                                Clear Cost History
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Ranking Tools -->
+                    <div class="bg-white rounded-xl border p-6">
+                        <h2 class="text-lg font-semibold mb-4">Ranking Tools</h2>
+                        <p class="text-sm text-gray-500 mb-4">Recompute and manage rankings.</p>
+                        <div class="space-y-3">
+                            <button onclick="recomputeAllRankings()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Recompute All Rankings
+                            </button>
+                            <div class="flex gap-2">
+                                <select id="recompute-city-select" class="flex-1 border rounded-lg px-3 py-2">
+                                    <option value="">Select city...</option>
+                                </select>
+                                <button onclick="recomputeCity()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                                    Recompute
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Website Schema -->
+                    <div class="bg-white rounded-xl border p-6">
+                        <h2 class="text-lg font-semibold mb-4">Website Integration</h2>
+                        <p class="text-sm text-gray-500 mb-4">Analyze and configure website schema.</p>
+                        <div class="space-y-3">
+                            <div class="flex gap-2">
+                                <input type="text" id="schema-url" class="flex-1 border rounded-lg px-3 py-2" placeholder="https://your-website.com/api/...">
+                                <button onclick="analyzeWebsiteSchema()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                                    Analyze
+                                </button>
+                            </div>
+                            <div id="schema-result" class="hidden p-3 bg-gray-50 rounded-lg text-sm"></div>
+                        </div>
+                    </div>
+
+                    <!-- Automation -->
+                    <div class="bg-white rounded-xl border p-6">
+                        <h2 class="text-lg font-semibold mb-4">Automation</h2>
+                        <p class="text-sm text-gray-500 mb-4">Run automated tasks manually.</p>
+                        <div class="space-y-3">
+                            <button onclick="runDailyTasks()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Run Daily Tasks Now
+                            </button>
+                            <button onclick="extractAllMissingEmails()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Extract Missing Emails
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Debug Info -->
+                    <div class="bg-white rounded-xl border p-6">
+                        <h2 class="text-lg font-semibold mb-4">Debug</h2>
+                        <p class="text-sm text-gray-500 mb-4">Troubleshooting tools.</p>
+                        <div class="space-y-3">
+                            <button onclick="runFullHealthCheck()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Run Full Health Check
+                            </button>
+                            <button onclick="loadDemoData()" class="w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left">
+                                Load Demo Data
+                            </button>
+                            <a href="/?v=1" class="block w-full border px-4 py-2 rounded-lg hover:bg-gray-50 text-left text-spot-burgundy">
+                                Open Classic Dashboard (V3)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Collection Wizard Modal -->
+<div id="collection-modal" class="fixed inset-0 hidden z-50">
+    <div class="modal-backdrop absolute inset-0" onclick="cancelCollection()"></div>
+    <div class="absolute inset-4 md:inset-10 lg:inset-20 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <!-- Header -->
+        <div class="px-8 py-5 border-b flex justify-between items-center bg-gray-50">
+            <div>
+                <h2 class="text-xl font-semibold" id="collection-title">Collecting Restaurants</h2>
+                <p class="text-sm text-gray-500" id="collection-subtitle">Geneva, Switzerland</p>
+            </div>
+            <button onclick="cancelCollection()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        
+        <!-- Progress Steps -->
+        <div class="px-8 py-4 border-b">
+            <div class="flex justify-between items-center max-w-2xl mx-auto">
+                <div class="progress-step flex items-center gap-2" id="step-1">
+                    <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium" id="step-1-circle">1</div>
+                    <span class="text-sm">Searching</span>
+                </div>
+                <div class="flex-1 h-0.5 bg-gray-200 mx-4" id="step-line-1"></div>
+                <div class="progress-step flex items-center gap-2 pending" id="step-2">
+                    <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium" id="step-2-circle">2</div>
+                    <span class="text-sm">Fetching Details</span>
+                </div>
+                <div class="flex-1 h-0.5 bg-gray-200 mx-4" id="step-line-2"></div>
+                <div class="progress-step flex items-center gap-2 pending" id="step-3">
+                    <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium" id="step-3-circle">3</div>
+                    <span class="text-sm">Ranking</span>
+                </div>
+                <div class="flex-1 h-0.5 bg-gray-200 mx-4" id="step-line-3"></div>
+                <div class="progress-step flex items-center gap-2 pending" id="step-4">
+                    <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium" id="step-4-circle">4</div>
+                    <span class="text-sm">Review</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Content -->
+        <div class="flex-1 overflow-auto p-8">
+            <!-- Progress View -->
+            <div id="collection-progress" class="max-w-2xl mx-auto">
+                <div class="text-center mb-8">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-spot-burgundy border-t-transparent mb-4"></div>
+                    <p class="text-lg font-medium" id="collection-status">Searching for restaurants...</p>
+                    <p class="text-sm text-gray-500" id="collection-detail">This may take a minute</p>
+                </div>
+                
+                <div class="bg-gray-100 rounded-full h-2 mb-4">
+                    <div id="collection-progress-bar" class="bg-spot-burgundy h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+                
+                <div id="collection-preview" class="mt-8 hidden">
+                    <h3 class="font-medium mb-3">Preview (Top Results)</h3>
+                    <div id="collection-preview-list" class="space-y-2"></div>
+                </div>
+            </div>
+            
+            <!-- Review View (shown after collection) -->
+            <div id="collection-review" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <span class="text-lg font-medium" id="review-count">0 restaurants found</span>
+                        <span class="text-gray-500 ml-2" id="review-filtered">(0 meet your criteria)</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="selectAllReview(true)" class="text-sm text-spot-burgundy hover:underline">Select All</button>
+                        <span class="text-gray-300">|</span>
+                        <button onclick="selectAllReview(false)" class="text-sm text-gray-500 hover:underline">Deselect All</button>
+                    </div>
+                </div>
+                
+                <div id="review-list" class="space-y-2 max-h-96 overflow-auto border rounded-lg">
+                    <!-- Review items loaded here -->
+                </div>
+                
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center gap-2" id="email-checkbox-label">
+                            <input type="checkbox" id="send-welcome-emails" class="rounded">
+                            <span class="text-sm">Send welcome emails to restaurants with email addresses</span>
+                        </label>
+                        <span class="text-sm text-gray-500" id="emails-available">(0 have emails)</span>
+                        <span class="text-xs text-red-500 hidden" id="emails-disabled-notice">Emails are disabled - enable in top bar</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="px-8 py-4 border-t bg-gray-50 flex justify-between">
+            <button onclick="cancelCollection()" class="px-6 py-2 border rounded-lg hover:bg-white">Cancel</button>
+            <div id="collection-actions">
+                <!-- Dynamic buttons based on state -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Publish Confirmation Modal -->
+<div id="publish-modal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closePublishModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+        <h2 class="text-xl font-semibold mb-2">Confirm Publishing</h2>
+        <p class="text-gray-600 mb-6">You are about to publish <strong id="publish-count">0</strong> restaurants to your website.</p>
+        
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <p class="text-sm text-amber-800">This will update your live website. Make sure you've reviewed the restaurants before publishing.</p>
+        </div>
+        
+        <div class="flex gap-3 justify-end">
+            <button onclick="closePublishModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+            <button onclick="confirmPublish()" class="px-6 py-2 bg-spot-burgundy text-white rounded-lg hover:bg-spot-dark">Yes, Publish</button>
+        </div>
+    </div>
+</div>
+
+<!-- Weights Panel (Slide-out) -->
+<div id="weights-panel" class="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl transform translate-x-full transition-transform z-40 hidden">
+    <div class="h-full flex flex-col">
+        <div class="px-6 py-4 border-b flex justify-between items-center">
+            <h2 class="text-lg font-semibold">Ranking Settings</h2>
+            <button onclick="closeWeightsPanel()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="flex-1 overflow-auto p-6">
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Rating</label>
+                    <select id="panel-min-rating" class="w-full border rounded-lg px-4 py-2">
+                        <option value="3.5">3.5+ stars</option>
+                        <option value="4.0">4.0+ stars</option>
+                        <option value="4.2">4.2+ stars</option>
+                        <option value="4.5">4.5+ stars</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Reviews</label>
+                    <select id="panel-min-reviews" class="w-full border rounded-lg px-4 py-2">
+                        <option value="10">10+ reviews</option>
+                        <option value="25">25+ reviews</option>
+                        <option value="50">50+ reviews</option>
+                        <option value="100">100+ reviews</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Google Rating Weight</label>
+                    <input type="range" id="panel-weight-google" min="0" max="100" value="80" class="w-full slider">
+                    <div class="text-center text-sm text-gray-500" id="panel-weight-google-val">80%</div>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t">
+            <button onclick="applyAndRecalculate()" class="w-full bg-spot-burgundy text-white py-2 rounded-lg hover:bg-spot-dark">Apply & Recalculate</button>
+        </div>
+    </div>
+</div>
+
+<!-- Exclude Restaurant Modal -->
+<div id="exclude-modal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closeExcludeModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+        <h2 class="text-xl font-semibold mb-2">Exclude Restaurant</h2>
+        <p class="text-gray-600 mb-4">Exclude "<span id="exclude-name"></span>" from rankings?</p>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
+            <select id="exclude-reason" class="w-full border rounded-lg px-4 py-2">
+                <option value="">Select a reason...</option>
+                <option value="chain">Chain restaurant (e.g., McDonald's)</option>
+                <option value="closed">Permanently closed</option>
+                <option value="quality">Quality doesn't meet standards</option>
+                <option value="duplicate">Duplicate entry</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        
+        <div class="flex gap-3 justify-end">
+            <button onclick="closeExcludeModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+            <button onclick="confirmExclude()" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Exclude</button>
+        </div>
+    </div>
+</div>
+
+<!-- Health Check Detail Modal -->
+<div id="health-modal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closeHealthModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+        <div class="p-6 border-b flex justify-between items-center">
+            <h2 class="text-xl font-semibold">System Health Details</h2>
+            <button onclick="closeHealthModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="flex-1 overflow-auto p-6">
+            <div id="health-detail-content" class="space-y-4">
+                <!-- Health details loaded here -->
+            </div>
+        </div>
+        <div class="p-4 border-t bg-gray-50">
+            <button onclick="runFullHealthCheck()" class="px-4 py-2 bg-spot-burgundy text-white rounded-lg hover:bg-spot-dark">Re-run Check</button>
+        </div>
+    </div>
+</div>
+
+<!-- Template Editor Modal -->
+<div id="template-modal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closeTemplateModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <div class="p-6 border-b flex justify-between items-center">
+            <div>
+                <h2 class="text-xl font-semibold" id="template-modal-title">Edit Template</h2>
+                <p class="text-sm text-gray-500" id="template-modal-subtitle">Welcome Email</p>
+            </div>
+            <button onclick="closeTemplateModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="flex-1 overflow-auto p-6">
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subject Line</label>
+                    <input type="text" id="template-subject" class="w-full border rounded-lg px-4 py-2 mb-4" placeholder="Welcome to Spotwego!">
+                    
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email Body (HTML)</label>
+                    <textarea id="template-body" class="w-full border rounded-lg px-4 py-2 font-mono text-sm" rows="15" placeholder="<html>...</html>"></textarea>
+                    
+                    <div class="mt-3 text-xs text-gray-500">
+                        <strong>Variables:</strong> {{restaurant_name}}, {{city}}, {{rating}}, {{ranking_url}}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Preview</label>
+                    <div class="border rounded-lg p-4 bg-gray-50 h-[400px] overflow-auto">
+                        <iframe id="template-preview-frame" class="w-full h-full border-0"></iframe>
+                    </div>
+                    <button onclick="updateTemplatePreview()" class="mt-2 text-sm text-spot-burgundy hover:underline">Refresh Preview</button>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t bg-gray-50 flex justify-between">
+            <button onclick="sendTestTemplateEmail()" class="px-4 py-2 border rounded-lg hover:bg-white">Send Test</button>
+            <div class="flex gap-3">
+                <button onclick="closeTemplateModal()" class="px-4 py-2 border rounded-lg hover:bg-white">Cancel</button>
+                <button onclick="saveTemplate()" class="px-6 py-2 bg-spot-burgundy text-white rounded-lg hover:bg-spot-dark">Save Template</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sentiment Tester Modal -->
+<div id="sentiment-modal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closeSentimentModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-2xl max-w-xl w-full mx-4 p-6">
+        <h2 class="text-xl font-semibold mb-4">Test Sentiment Analysis</h2>
+        <textarea id="sentiment-test-text" class="w-full border rounded-lg px-4 py-3 mb-4" rows="4" placeholder="Enter review text to analyze..."></textarea>
+        <button onclick="analyzeSentiment()" class="w-full bg-spot-burgundy text-white px-4 py-2 rounded-lg hover:bg-spot-dark mb-4">Analyze</button>
+        <div id="sentiment-result" class="hidden p-4 bg-gray-50 rounded-lg">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div><strong>Polarity:</strong> <span id="sent-polarity">-</span></div>
+                <div><strong>Subjectivity:</strong> <span id="sent-subjectivity">-</span></div>
+                <div><strong>Food:</strong> <span id="sent-food">-</span></div>
+                <div><strong>Service:</strong> <span id="sent-service">-</span></div>
+                <div><strong>Ambiance:</strong> <span id="sent-ambiance">-</span></div>
+                <div><strong>Value:</strong> <span id="sent-value">-</span></div>
+            </div>
+        </div>
+        <div class="flex justify-end mt-4">
+            <button onclick="closeSentimentModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Keyword Manager Modal -->
+<div id="keyword-modal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="modal-backdrop absolute inset-0" onclick="closeKeywordModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-2xl max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col">
+        <div class="p-6 border-b">
+            <h2 class="text-xl font-semibold">Custom Sentiment Keywords</h2>
+            <p class="text-sm text-gray-500">Add keywords in any language to improve sentiment analysis.</p>
+        </div>
+        <div class="flex-1 overflow-auto p-6">
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <input type="text" id="keyword-text" class="border rounded-lg px-3 py-2" placeholder="Keyword">
+                <select id="keyword-category" class="border rounded-lg px-3 py-2">
+                    <option value="food">Food</option>
+                    <option value="service">Service</option>
+                    <option value="ambiance">Ambiance</option>
+                    <option value="value">Value</option>
+                </select>
+                <div class="flex gap-2">
+                    <select id="keyword-sentiment" class="flex-1 border rounded-lg px-3 py-2">
+                        <option value="positive">Positive</option>
+                        <option value="negative">Negative</option>
+                    </select>
+                    <button onclick="addKeyword()" class="px-4 py-2 bg-spot-burgundy text-white rounded-lg">Add</button>
+                </div>
+            </div>
+            <div id="keywords-list" class="space-y-2 max-h-64 overflow-auto">
+                <!-- Keywords loaded here -->
+            </div>
+        </div>
+        <div class="p-4 border-t bg-gray-50">
+            <button onclick="closeKeywordModal()" class="px-4 py-2 border rounded-lg hover:bg-white">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all z-50 pointer-events-none"></div>
+
+<script>
+const API = '';
+let citiesData = [];
+let rankingsData = [];
+let collectionState = { city: '', country: '', step: 0, results: [] };
+let selectedForPublish = new Set();
+let excludeRestaurantId = null;
+let emailsEnabled = false;
+
+// ==================== NAVIGATION ====================
+
+function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+    document.getElementById(`section-${id}`).classList.remove('hidden');
+    document.querySelectorAll('.sidebar-link').forEach(l => {
+        l.classList.remove('active');
+        if (l.dataset.section === id) l.classList.add('active');
+    });
+    
+    const titles = {
+        'cities': 'Cities',
+        'rankings': 'Rankings',
+        'weights': 'Ranking Weights',
+        'emails': 'Emails',
+        'settings': 'Settings',
+        'monitoring': 'Monitoring',
+        'advanced': 'Advanced Tools'
+    };
+    document.getElementById('pageTitle').textContent = titles[id] || 'Cities';
+    
+    // Load section data
+    if (id === 'cities') loadCities();
+    if (id === 'rankings') loadRankings();
+    if (id === 'weights') loadWeights();
+    if (id === 'emails') loadEmailSettings();
+    if (id === 'settings') loadSettings();
+    if (id === 'monitoring') loadMonitoring();
+    if (id === 'advanced') loadAdvanced();
+}
+
+function refreshCurrentSection() {
+    const active = document.querySelector('.sidebar-link.active');
+    if (active) showSection(active.dataset.section);
+}
+
+// ==================== CITIES ====================
+
+async function loadCities() {
+    try {
+        console.log('Loading cities...');
+        const res = await fetch(`${API}/api/regions`);
+        citiesData = await res.json();
+        console.log('Cities loaded:', citiesData);
+        renderCities();
+    } catch (e) {
+        console.error('Failed to load cities:', e);
+    }
+}
+
+function renderCities() {
+    const grid = document.getElementById('cities-grid');
+    document.getElementById('cities-count').textContent = `${citiesData.length} cities`;
+    
+    if (citiesData.length === 0) {
+        grid.innerHTML = '<div class="text-center py-12 text-gray-400 col-span-full">No cities yet. Add your first city above.</div>';
+        return;
+    }
+    
+    grid.innerHTML = citiesData.map(city => `
+        <div class="city-card bg-white rounded-xl border p-5 cursor-pointer" onclick="viewCity('${city.code}')">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h3 class="font-semibold text-lg">${city.name || city.code}</h3>
+                    <p class="text-sm text-gray-500">${city.country || 'Switzerland'}</p>
+                </div>
+                <div class="text-xs px-2 py-1 rounded bg-gray-100">${city.code}</div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm mb-4">
+                <div>
+                    <span class="text-gray-500">Restaurants:</span>
+                    <span class="font-medium ml-1">${city.restaurants_count || 0}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">Published:</span>
+                    <span class="font-medium ml-1 text-green-600">${city.published_count || 0}</span>
+                </div>
+            </div>
+            <div class="flex justify-between items-center pt-3 border-t">
+                <span class="text-xs text-gray-400">${city.last_scan ? 'Updated ' + formatDate(city.last_scan) : 'Never scanned'}</span>
+                <button onclick="event.stopPropagation(); refreshCity('${city.code}')" class="text-xs text-spot-burgundy hover:underline">Refresh</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return 'Never';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    if (diff < 7) return `${diff} days ago`;
+    return d.toLocaleDateString();
+}
+
+function viewCity(code) {
+    document.getElementById('rankings-city-filter').value = code;
+    showSection('rankings');
+}
+
+async function refreshCity(code) {
+    const city = citiesData.find(c => c.code === code);
+    if (city) {
+        collectionState = { city: city.name, country: city.country || 'Switzerland', code: code, isRefresh: true };
+        openCollectionModal();
+        await runCollection();
+    }
+}
+
+// ==================== COLLECTION WIZARD ====================
+
+let collectionMode = 'cost'; // 'cost' or 'quick'
+
+function setCollectionMode(mode) {
+    collectionMode = mode;
+    document.getElementById('mode-cost').className = mode === 'cost' 
+        ? 'px-3 py-1.5 text-sm rounded-md bg-white shadow font-medium'
+        : 'px-3 py-1.5 text-sm rounded-md text-gray-600';
+    document.getElementById('mode-quick').className = mode === 'quick'
+        ? 'px-3 py-1.5 text-sm rounded-md bg-white shadow font-medium'
+        : 'px-3 py-1.5 text-sm rounded-md text-gray-600';
+    document.getElementById('cost-mode-panel').classList.toggle('hidden', mode !== 'cost');
+    document.getElementById('quick-mode-panel').classList.toggle('hidden', mode !== 'quick');
+}
+
+async function startCostOptimizedSearch() {
+    const city = document.getElementById('cost-city-name').value.trim();
+    const country = document.getElementById('cost-country').value;
+    const radius = parseInt(document.getElementById('cost-radius').value);
+    const maxResults = parseInt(document.getElementById('cost-max-results').value);
+    
+    if (!city) {
+        showToast('Please enter a city name', 'error');
+        return;
+    }
+    
+    collectionState = { city, country, radius, maxResults, mode: 'cost', step: 0, results: [], allResults: [], isRefresh: false };
+    openCollectionModal();
+    await runCostOptimizedCollection();
+}
+
+async function startQuickSearch() {
+    const city = document.getElementById('quick-city-name').value.trim();
+    const country = document.getElementById('quick-country').value;
+    const minRating = parseFloat(document.getElementById('quick-min-rating').value);
+    const minReviews = parseInt(document.getElementById('quick-min-reviews').value);
+    const maxResults = parseInt(document.getElementById('quick-max-results').value);
+    
+    if (!city) {
+        showToast('Please enter a city name', 'error');
+        return;
+    }
+    
+    collectionState = { city, country, minRating, minReviews, maxResults, mode: 'quick', step: 0, results: [], allResults: [], isRefresh: false };
+    openCollectionModal();
+    await runQuickSearchCollection();
+}
+
+function startCityCollection() {
+    // Legacy function - redirect to cost optimized
+    const city = document.getElementById('cost-city-name')?.value?.trim() || document.getElementById('quick-city-name')?.value?.trim();
+    if (!city) {
+        showToast('Please enter a city name', 'error');
+        return;
+    }
+    if (collectionMode === 'cost') {
+        startCostOptimizedSearch();
+    } else {
+        startQuickSearch();
+    }
+}
+
+function openCollectionModal() {
+    document.getElementById('collection-modal').classList.remove('hidden');
+    document.getElementById('collection-subtitle').textContent = `${collectionState.city}, ${collectionState.country}`;
+    document.getElementById('collection-title').textContent = collectionState.isRefresh ? 'Refreshing City' : 'Collecting Restaurants';
+    resetProgressSteps();
+}
+
+function resetProgressSteps() {
+    for (let i = 1; i <= 4; i++) {
+        document.getElementById(`step-${i}`).className = 'progress-step flex items-center gap-2 pending';
+        document.getElementById(`step-${i}-circle`).className = 'w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center text-sm font-medium text-gray-400';
+    }
+    document.getElementById('collection-progress').classList.remove('hidden');
+    document.getElementById('collection-review').classList.add('hidden');
+    document.getElementById('collection-progress-bar').style.width = '0%';
+    document.getElementById('collection-preview').classList.add('hidden');
+    document.getElementById('collection-actions').innerHTML = '';
+}
+
+function setStep(step, status) {
+    const stepEl = document.getElementById(`step-${step}`);
+    const circleEl = document.getElementById(`step-${step}-circle`);
+    
+    if (status === 'active') {
+        stepEl.className = 'progress-step flex items-center gap-2 active';
+        circleEl.className = 'w-8 h-8 rounded-full border-2 border-spot-burgundy bg-spot-burgundy text-white flex items-center justify-center text-sm font-medium';
+    } else if (status === 'completed') {
+        stepEl.className = 'progress-step flex items-center gap-2 completed';
+        circleEl.className = 'w-8 h-8 rounded-full border-2 border-green-500 bg-green-500 text-white flex items-center justify-center text-sm font-medium';
+        circleEl.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+    }
+}
+
+// Cost Optimized: Two-step process
+async function runCostOptimizedCollection() {
+    try {
+        // Step 1: Free Preview Search
+        setStep(1, 'active');
+        document.getElementById('collection-status').textContent = 'Searching for restaurants (FREE)...';
+        document.getElementById('collection-detail').textContent = 'Finding places in ' + collectionState.city;
+        document.getElementById('collection-progress-bar').style.width = '10%';
+        
+        const searchRes = await fetch(`${API}/api/places/preview`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                city: collectionState.city,
+                country: collectionState.country,
+                radius: collectionState.radius || 10,
+                max_results: collectionState.maxResults || 200
+            })
+        });
+        const searchData = await searchRes.json();
+        
+        if (!searchData.success) {
+            throw new Error(searchData.error || 'Search failed');
+        }
+        
+        collectionState.previewResults = searchData.results || [];
+        
+        setStep(1, 'completed');
+        document.getElementById('collection-progress-bar').style.width = '25%';
+        
+        // Show preview for selection
+        showPreviewSelection(searchData);
+        
+    } catch (e) {
+        document.getElementById('collection-status').textContent = 'Error: ' + e.message;
+        document.getElementById('collection-detail').textContent = 'Please try again';
+        document.getElementById('collection-actions').innerHTML = `
+            <button onclick="cancelCollection()" class="px-6 py-2 bg-spot-burgundy text-white rounded-lg">Close</button>
+        `;
+    }
+}
+
+function showPreviewSelection(searchData) {
+    document.getElementById('collection-progress').classList.add('hidden');
+    document.getElementById('collection-review').classList.remove('hidden');
+    
+    document.getElementById('review-count').textContent = `${searchData.results.length} restaurants found (FREE preview)`;
+    document.getElementById('review-filtered').textContent = `Select restaurants to fetch full details`;
+    document.getElementById('emails-available').textContent = '';
+    
+    // Render preview list (names only)
+    const list = document.getElementById('review-list');
+    list.innerHTML = collectionState.previewResults.map((r, i) => `
+        <div class="flex items-center gap-4 p-3 hover:bg-gray-50 border-b last:border-0">
+            <input type="checkbox" checked class="preview-checkbox rounded" data-index="${i}" data-place-id="${r.place_id}">
+            <span class="w-8 text-center text-gray-400 text-sm">${i + 1}</span>
+            <div class="flex-1">
+                <div class="font-medium">${r.name}</div>
+                <div class="text-sm text-gray-500">${r.address || r.types?.join(', ') || ''}</div>
+            </div>
+            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Preview</span>
+        </div>
+    `).join('');
+    
+    document.getElementById('collection-actions').innerHTML = `
+        <button onclick="fetchSelectedDetails()" class="px-6 py-2 bg-spot-burgundy text-white rounded-lg hover:bg-spot-dark">
+            Fetch Details for Selected (${collectionState.previewResults.length})
+        </button>
+    `;
+    
+    // Hide email checkbox for preview
+    document.querySelector('#collection-review .bg-gray-50')?.classList.add('hidden');
+}
+
+async function fetchSelectedDetails() {
+    const checkboxes = document.querySelectorAll('.preview-checkbox:checked');
+    const placeIds = Array.from(checkboxes).map(cb => cb.dataset.placeId);
+    
+    if (placeIds.length === 0) {
+        showToast('No restaurants selected', 'error');
+        return;
+    }
+    
+    // Show progress
+    document.getElementById('collection-progress').classList.remove('hidden');
+    document.getElementById('collection-review').classList.add('hidden');
+    
+    setStep(2, 'active');
+    document.getElementById('collection-status').textContent = 'Fetching restaurant details...';
+    document.getElementById('collection-detail').textContent = `Loading ${placeIds.length} restaurants (PAID)`;
+    document.getElementById('collection-progress-bar').style.width = '50%';
+    
+    try {
+        // Fetch in batches
+        const batchSize = 20;
+        let allResults = [];
+        
+        for (let i = 0; i < placeIds.length; i += batchSize) {
+            const batch = placeIds.slice(i, i + batchSize);
+            
+            const res = await fetch(`${API}/api/places/details`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ place_ids: batch, extract_emails: true })
+            });
+            const data = await res.json();
+            
+            if (data.success && data.results) {
+                allResults = allResults.concat(data.results);
+            }
+            
+            const progress = 50 + (i / placeIds.length) * 25;
+            document.getElementById('collection-progress-bar').style.width = progress + '%';
+        }
+        
+        setStep(2, 'completed');
+        document.getElementById('collection-progress-bar').style.width = '75%';
+        
+        // Step 3: Ranking
+        setStep(3, 'active');
+        document.getElementById('collection-status').textContent = 'Ranking restaurants...';
+        
+        // Get settings
+        const minRating = parseFloat(document.getElementById('default-min-rating')?.value || '4.0');
+        const minReviews = parseInt(document.getElementById('default-min-reviews')?.value || '50');
+        
+        // Filter and rank
+        collectionState.results = allResults
+            .filter(r => r.rating >= minRating && r.review_count >= minReviews)
+            .sort((a, b) => (b.rating * Math.log10(b.review_count + 1)) - (a.rating * Math.log10(a.review_count + 1)));
+        
+        collectionState.allResults = allResults;
+        
+        setStep(3, 'completed');
+        setStep(4, 'active');
+        document.getElementById('collection-progress-bar').style.width = '100%';
+        
+        await sleep(300);
+        showCollectionReview();
+        
+    } catch (e) {
+        document.getElementById('collection-status').textContent = 'Error: ' + e.message;
+        document.getElementById('collection-detail').textContent = 'Please try again';
+        document.getElementById('collection-actions').innerHTML = `
+            <button onclick="cancelCollection()" class="px-6 py-2 bg-spot-burgundy text-white rounded-lg">Close</button>
+        `;
+    }
+}
+
+// Quick Search: Single request
+async function runQuickSearchCollection() {
+    try {
+        setStep(1, 'active');
+        document.getElementById('collection-status').textContent = 'Searching for restaurants...';
+        document.getElementById('collection-detail').textContent = 'Finding places in ' + collectionState.city;
+        document.getElementById('collection-progress-bar').style.width = '25%';
+        
+        const searchRes = await fetch(`${API}/api/places/quick-search`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                city: collectionState.city,
+                country: collectionState.country,
+                min_rating: collectionState.minRating || 4.0,
+                max_results: collectionState.maxResults || 100
+            })
+        });
+        const searchData = await searchRes.json();
+        
+        if (!searchData.success) {
+            throw new Error(searchData.error || 'Search failed');
+        }
+        
+        setStep(1, 'completed');
+        setStep(2, 'completed');
+        document.getElementById('collection-progress-bar').style.width = '50%';
+        
+        // Step 3: Apply local filters
+        setStep(3, 'active');
+        document.getElementById('collection-status').textContent = 'Applying filters...';
+        
+        const minReviews = collectionState.minReviews || 50;
+        
+        collectionState.results = searchData.results
+            .filter(r => r.review_count >= minReviews)
+            .sort((a, b) => (b.rating * Math.log10(b.review_count + 1)) - (a.rating * Math.log10(a.review_count + 1)));
+        
+        collectionState.allResults = searchData.results;
+        
+        setStep(3, 'completed');
+        setStep(4, 'active');
+        document.getElementById('collection-progress-bar').style.width = '100%';
+        
+        await sleep(300);
+        showCollectionReview();
+        
+    } catch (e) {
+        document.getElementById('collection-status').textContent = 'Error: ' + e.message;
+        document.getElementById('collection-detail').textContent = 'Please try again';
+        document.getElementById('collection-actions').innerHTML = `
+            <button onclick="cancelCollection()" class="px-6 py-2 bg-spot-burgundy text-white rounded-lg">Close</button>
+        `;
+    }
+}
+
+async function runCollection() {
+    // Legacy - calls appropriate method based on mode
+    if (collectionState.mode === 'cost') {
+        await runCostOptimizedCollection();
+    } else {
+        await runQuickSearchCollection();
+    }
+}
+
+function showCollectionReview() {
+    document.getElementById('collection-progress').classList.add('hidden');
+    document.getElementById('collection-review').classList.remove('hidden');
+    
+    // Show email options panel
+    document.querySelector('#collection-review .bg-gray-50')?.classList.remove('hidden');
+    
+    document.getElementById('review-count').textContent = `${collectionState.allResults.length} restaurants found`;
+    document.getElementById('review-filtered').textContent = `(${collectionState.results.length} meet your criteria)`;
+    
+    const emailCount = collectionState.results.filter(r => r.email).length;
+    document.getElementById('emails-available').textContent = `(${emailCount} have emails)`;
+    
+    // Update email checkbox based on global toggle
+    const emailCheckbox = document.getElementById('send-welcome-emails');
+    const emailDisabledNotice = document.getElementById('emails-disabled-notice');
+    if (!emailsEnabled) {
+        emailCheckbox.checked = false;
+        emailCheckbox.disabled = true;
+        emailCheckbox.parentElement.classList.add('opacity-50');
+        emailDisabledNotice.classList.remove('hidden');
+    } else {
+        emailCheckbox.disabled = false;
+        emailCheckbox.parentElement.classList.remove('opacity-50');
+        emailDisabledNotice.classList.add('hidden');
+    }
+    
+    // Render review list
+    const list = document.getElementById('review-list');
+    list.innerHTML = collectionState.results.map((r, i) => `
+        <div class="flex items-center gap-4 p-3 hover:bg-gray-50 border-b last:border-0">
+            <input type="checkbox" checked class="review-checkbox rounded" data-index="${i}">
+            <span class="w-8 text-center text-gray-400 text-sm">${i + 1}</span>
+            <div class="flex-1">
+                <div class="font-medium">${r.name}</div>
+                <div class="text-sm text-gray-500">${r.address || ''}</div>
+            </div>
+            <div class="text-right">
+                <div class="font-medium">${r.rating.toFixed(1)}</div>
+                <div class="text-xs text-gray-500">${r.review_count} reviews</div>
+            </div>
+            ${r.email ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Has email</span>' : ''}
+        </div>
+    `).join('');
+    
+    const count = collectionState.results.length;
+    document.getElementById('collection-actions').innerHTML = `
+        <button onclick="saveOnly()" class="px-6 py-2 border rounded-lg hover:bg-gray-50 mr-2">
+            Save Only (${count})
+        </button>
+        <button onclick="importAndPublish()" class="px-6 py-2 bg-spot-burgundy text-white rounded-lg hover:bg-spot-dark">
+            Save & Publish (${count})
+        </button>
+    `;
+}
+
+async function saveOnly() {
+    // Get selected
+    const checkboxes = document.querySelectorAll('.review-checkbox:checked');
+    const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
+    const toImport = selectedIndices.map(i => collectionState.results[i]);
+    
+    if (toImport.length === 0) {
+        showToast('No restaurants selected', 'error');
+        return;
+    }
+    
+    console.log('Saving restaurants:', toImport.length);
+    console.log('City:', collectionState.city, 'Country:', collectionState.country);
+    console.log('Sample restaurant:', toImport[0]);
+    
+    // Import without publishing
+    document.getElementById('collection-status').textContent = 'Saving restaurants...';
+    document.getElementById('collection-detail').textContent = 'Please wait';
+    document.getElementById('collection-progress').classList.remove('hidden');
+    document.getElementById('collection-review').classList.add('hidden');
+    document.getElementById('collection-actions').innerHTML = '';
+    
+    try {
+        const payload = {
+            restaurants: toImport,
+            city: collectionState.city,
+            country: collectionState.country,
+            auto_publish: false,
+            send_emails: false
+        };
+        console.log('Import payload:', JSON.stringify(payload).substring(0, 500) + '...');
+        
+        const res = await fetch(`${API}/api/places/import`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        console.log('Import response:', data);
+        
+        if (data.success || data.imported > 0) {
+            showToast(`Saved ${data.imported || toImport.length} restaurants (not published). Region: ${data.region_code}`);
+            
+            // Debug: fetch restaurant count for debugging
+            try {
+                const debugRes = await fetch(`${API}/api/debug/restaurants`);
+                const debugData = await debugRes.json();
+                console.log('Debug data after import:', debugData);
+            } catch (e) {
+                console.log('Debug fetch failed:', e);
+            }
+            
+            cancelCollection();
+            await loadCities();
+        } else {
+            throw new Error(data.error || 'Save failed');
+        }
+    } catch (e) {
+        console.error('Import error:', e);
+        showToast('Error: ' + e.message, 'error');
+        showCollectionReview();
+    }
+}
+
+function selectAllReview(select) {
+    document.querySelectorAll('.review-checkbox').forEach(cb => cb.checked = select);
+    updateImportCount();
+}
+
+function updateImportCount() {
+    const count = document.querySelectorAll('.review-checkbox:checked').length;
+    // Update all buttons in collection-actions
+    document.querySelectorAll('#collection-actions button').forEach(btn => {
+        if (btn.textContent.includes('Save Only')) {
+            btn.textContent = `Save Only (${count})`;
+        } else if (btn.textContent.includes('Save & Publish') || btn.textContent.includes('Import')) {
+            btn.textContent = `Save & Publish (${count})`;
+        }
+    });
+}
+
+async function importAndPublish() {
+    // Get selected
+    const checkboxes = document.querySelectorAll('.review-checkbox:checked');
+    const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
+    const toImport = selectedIndices.map(i => collectionState.results[i]);
+    
+    if (toImport.length === 0) {
+        showToast('No restaurants selected', 'error');
+        return;
+    }
+    
+    // Show confirmation
+    document.getElementById('publish-count').textContent = toImport.length;
+    document.getElementById('publish-modal').classList.remove('hidden');
+    
+    // Store for confirmation
+    collectionState.toImport = toImport;
+    collectionState.sendEmails = document.getElementById('send-welcome-emails').checked && emailsEnabled;
+}
+
+async function confirmPublish() {
+    closePublishModal();
+    
+    document.getElementById('collection-status').textContent = 'Publishing to website...';
+    document.getElementById('collection-detail').textContent = 'Please wait';
+    document.getElementById('collection-progress').classList.remove('hidden');
+    document.getElementById('collection-review').classList.add('hidden');
+    document.getElementById('collection-actions').innerHTML = '';
+    
+    try {
+        const res = await fetch(`${API}/api/places/import`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                restaurants: collectionState.toImport,
+                city: collectionState.city,
+                country: collectionState.country,
+                auto_publish: true,
+                send_emails: collectionState.sendEmails
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success || data.imported > 0) {
+            showToast(`Successfully imported ${data.imported || collectionState.toImport.length} restaurants!`);
+            cancelCollection();
+            loadCities();
+            document.getElementById('new-city-name').value = '';
+        } else {
+            throw new Error(data.error || 'Import failed');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+        showCollectionReview(); // Go back to review
+    }
+}
+
+function cancelCollection() {
+    document.getElementById('collection-modal').classList.add('hidden');
+    collectionState = { city: '', country: '', step: 0, results: [] };
+}
+
+function closePublishModal() {
+    document.getElementById('publish-modal').classList.add('hidden');
+}
+
+// ==================== RANKINGS ====================
+
+async function loadRankings() {
+    try {
+        const city = document.getElementById('rankings-city-filter').value;
+        const url = city ? `${API}/api/restaurants?region=${city}` : `${API}/api/restaurants`;
+        const res = await fetch(url);
+        rankingsData = await res.json();
+        
+        // Update city filter options
+        await updateCityFilterOptions();
+        
+        renderRankings();
+    } catch (e) {
+        console.error('Failed to load rankings:', e);
+    }
+}
+
+async function updateCityFilterOptions() {
+    const select = document.getElementById('rankings-city-filter');
+    const currentValue = select.value;
+    
+    try {
+        const res = await fetch(`${API}/api/regions`);
+        const regions = await res.json();
+        
+        select.innerHTML = '<option value="">All Cities</option>' + 
+            regions.map(r => `<option value="${r.code}">${r.name || r.code}</option>`).join('');
+        
+        select.value = currentValue;
+    } catch (e) {}
+}
+
+function renderRankings() {
+    const tbody = document.getElementById('rankings-table-body');
+    const statusFilter = document.getElementById('rankings-status-filter').value;
+    const searchQuery = document.getElementById('rankings-search').value.toLowerCase();
+    
+    let filtered = rankingsData;
+    
+    if (searchQuery) {
+        filtered = filtered.filter(r => r.name.toLowerCase().includes(searchQuery));
+    }
+    
+    if (statusFilter) {
+        filtered = filtered.filter(r => {
+            if (statusFilter === 'published') return r.is_published;
+            if (statusFilter === 'excluded') return r.is_excluded;
+            if (statusFilter === 'pending') return !r.is_published && !r.is_excluded;
+            return true;
+        });
+    }
+    
+    // Sort by rank
+    filtered.sort((a, b) => (a.auto_rank || 999) - (b.auto_rank || 999));
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-gray-400">No restaurants found</td></tr>';
+    } else {
+        tbody.innerHTML = filtered.map((r, i) => {
+            const status = r.is_excluded ? 'excluded' : (r.is_published ? 'published' : 'pending');
+            const statusClass = status === 'published' ? 'bg-green-100 text-green-700' : 
+                               status === 'excluded' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
+            
+            // Sentiment display
+            const sentiment = r.sentiment_score;
+            let sentimentDisplay = '-';
+            let sentimentClass = 'text-gray-400';
+            if (sentiment !== null && sentiment !== undefined) {
+                const sentimentVal = parseFloat(sentiment);
+                if (sentimentVal >= 0.3) {
+                    sentimentDisplay = `+${sentimentVal.toFixed(2)}`;
+                    sentimentClass = 'text-green-600 font-medium';
+                } else if (sentimentVal <= -0.3) {
+                    sentimentDisplay = sentimentVal.toFixed(2);
+                    sentimentClass = 'text-red-600 font-medium';
+                } else {
+                    sentimentDisplay = sentimentVal.toFixed(2);
+                    sentimentClass = 'text-gray-500';
+                }
+            }
+            
+            return `
+                <tr class="border-b hover:bg-gray-50 ${r.is_excluded ? 'opacity-50' : ''}">
+                    <td class="px-4 py-3">
+                        <input type="checkbox" class="ranking-checkbox rounded" data-id="${r.id}" ${selectedForPublish.has(r.id) ? 'checked' : ''} onchange="toggleRankingSelection(${r.id})">
+                    </td>
+                    <td class="px-4 py-3 font-medium">${r.auto_rank || '-'}</td>
+                    <td class="px-4 py-3">
+                        <div class="font-medium">${r.name}</div>
+                        <div class="text-sm text-gray-500">${r.cuisine || ''}</div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500">${r.city || r.canton || ''}</td>
+                    <td class="px-4 py-3 font-medium">${(r.composite_score || 0).toFixed(2)}</td>
+                    <td class="px-4 py-3">${r.google_rating || r.rating || '-'}</td>
+                    <td class="px-4 py-3 text-sm">${r.total_reviews || r.review_count || 0}</td>
+                    <td class="px-4 py-3">
+                        <span class="${sentimentClass}" title="Sentiment from review text analysis">${sentimentDisplay}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="text-xs px-2 py-1 rounded-full ${statusClass}">${status}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex gap-1">
+                            ${!r.is_excluded ? `
+                                <button onclick="excludeRestaurant(${r.id}, '${r.name.replace(/'/g, "\\'")}')" class="text-xs text-red-600 hover:underline">Exclude</button>
+                            ` : `
+                                <button onclick="includeRestaurant(${r.id})" class="text-xs text-green-600 hover:underline">Include</button>
+                            `}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // Update summary
+    const published = rankingsData.filter(r => r.is_published).length;
+    const excluded = rankingsData.filter(r => r.is_excluded).length;
+    const pending = rankingsData.length - published - excluded;
+    
+    document.getElementById('rankings-summary').textContent = `${rankingsData.length} restaurants total`;
+    document.getElementById('rankings-published-count').textContent = `${published} published`;
+    document.getElementById('rankings-pending-count').textContent = `${pending} pending`;
+    document.getElementById('rankings-excluded-count').textContent = `${excluded} excluded`;
+}
+
+function filterRankingsDisplay() {
+    renderRankings();
+}
+
+function toggleSelectAllRankings() {
+    const checked = document.getElementById('select-all-rankings').checked;
+    document.querySelectorAll('.ranking-checkbox').forEach(cb => {
+        cb.checked = checked;
+        const id = parseInt(cb.dataset.id);
+        if (checked) selectedForPublish.add(id);
+        else selectedForPublish.delete(id);
+    });
+}
+
+function toggleRankingSelection(id) {
+    if (selectedForPublish.has(id)) {
+        selectedForPublish.delete(id);
+    } else {
+        selectedForPublish.add(id);
+    }
+}
+
+function excludeRestaurant(id, name) {
+    excludeRestaurantId = id;
+    document.getElementById('exclude-name').textContent = name;
+    document.getElementById('exclude-modal').classList.remove('hidden');
+}
+
+function closeExcludeModal() {
+    document.getElementById('exclude-modal').classList.add('hidden');
+    excludeRestaurantId = null;
+}
+
+async function confirmExclude() {
+    const reason = document.getElementById('exclude-reason').value;
+    
+    try {
+        await fetch(`${API}/api/restaurants/${excludeRestaurantId}/exclude`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ reason })
+        });
+        showToast('Restaurant excluded');
+        closeExcludeModal();
+        loadRankings();
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function includeRestaurant(id) {
+    try {
+        await fetch(`${API}/api/restaurants/${id}/include`, {
+            method: 'POST'
+        });
+        showToast('Restaurant included');
+        loadRankings();
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function openWeightsPanel() {
+    const panel = document.getElementById('weights-panel');
+    panel.classList.remove('hidden');
+    setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+}
+
+function closeWeightsPanel() {
+    const panel = document.getElementById('weights-panel');
+    panel.classList.add('translate-x-full');
+    setTimeout(() => panel.classList.add('hidden'), 300);
+}
+
+async function publishSelected() {
+    if (selectedForPublish.size === 0) {
+        showToast('No restaurants selected', 'error');
+        return;
+    }
+    
+    document.getElementById('publish-count').textContent = selectedForPublish.size;
+    document.getElementById('publish-modal').classList.remove('hidden');
+}
+
+// ==================== SETTINGS ====================
+
+async function loadSettings() {
+    try {
+        // Load API keys
+        const keysRes = await fetch(`${API}/api/keys`);
+        const keys = await keysRes.json();
+        renderApiKeys(keys);
+        
+        // Load other settings...
+        const weightsRes = await fetch(`${API}/api/ranking/weights`);
+        const weights = await weightsRes.json();
+        
+        if (weights.weight_google) document.getElementById('weight-google').value = weights.weight_google * 100;
+        if (weights.min_reviews_threshold) document.getElementById('default-min-reviews').value = weights.min_reviews_threshold;
+        
+        updateWeightDisplay('google');
+        updateWeightDisplay('reviews');
+        
+    } catch (e) {
+        console.error('Failed to load settings:', e);
+    }
+}
+
+function renderApiKeys(keys) {
+    const list = document.getElementById('api-keys-list');
+    list.innerHTML = keys.map(k => `
+        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-spot-burgundy/20 flex items-center justify-center font-bold text-spot-burgundy">
+                    ${k.provider[0].toUpperCase()}
+                </div>
+                <div>
+                    <div class="font-medium">${k.provider.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                    <div class="text-sm text-gray-500 font-mono">${k.key_preview || '••••••••'}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs px-2 py-1 rounded-full ${k.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+                    ${k.is_active ? 'Active' : 'Inactive'}
+                </span>
+                <button onclick="deleteApiKey('${k.provider}')" class="text-sm text-red-600 hover:underline">Delete</button>
+            </div>
+        </div>
+    `).join('') || '<div class="text-gray-400 text-center py-4">No API keys configured</div>';
+}
+
+async function saveApiKey(e) {
+    e.preventDefault();
+    const provider = document.getElementById('key-provider').value;
+    const key = document.getElementById('key-value').value;
+    
+    if (!key) {
+        showToast('Please enter an API key', 'error');
+        return;
+    }
+    
+    try {
+        await fetch(`${API}/api/keys`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ provider, api_key: key })
+        });
+        document.getElementById('key-value').value = '';
+        showToast('API key saved');
+        loadSettings();
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function deleteApiKey(provider) {
+    if (!confirm(`Delete ${provider} API key?`)) return;
+    
+    try {
+        await fetch(`${API}/api/keys/${provider}`, { method: 'DELETE' });
+        showToast('API key deleted');
+        loadSettings();
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function updateWeightDisplay(type) {
+    const val = document.getElementById(`weight-${type}`).value;
+    document.getElementById(`weight-${type}-val`).textContent = val + '%';
+}
+
+// ==================== MONITORING ====================
+
+async function loadMonitoring() {
+    try {
+        // Load stats
+        const statsRes = await fetch(`${API}/api/stats`);
+        const stats = await statsRes.json();
+        
+        document.getElementById('stat-restaurants').textContent = stats.restaurants || 0;
+        document.getElementById('stat-published').textContent = stats.published || 0;
+        document.getElementById('stat-cities').textContent = stats.regions || 0;
+        
+        // Load costs
+        const costsRes = await fetch(`${API}/api/costs?period=month`);
+        const costs = await costsRes.json();
+        
+        document.getElementById('stat-api-cost').textContent = '$' + (costs.month_cost || 0).toFixed(2);
+        
+        // Render cost breakdown
+        if (costs.breakdown && costs.breakdown.length > 0) {
+            document.getElementById('cost-breakdown').innerHTML = costs.breakdown.map(b => `
+                <div class="flex justify-between py-2 border-b last:border-0">
+                    <span class="text-gray-600">${b.endpoint}</span>
+                    <span class="font-medium">$${(b.total_cost || 0).toFixed(3)}</span>
+                </div>
+            `).join('');
+        }
+        
+        // Quick health check
+        runQuickHealthCheck();
+        
+    } catch (e) {
+        console.error('Failed to load monitoring:', e);
+    }
+}
+
+async function runQuickHealthCheck() {
+    try {
+        const res = await fetch(`${API}/api/health/full`);
+        const data = await res.json();
+        
+        document.getElementById('health-db').className = 'w-3 h-3 rounded-full ' + 
+            (data.database?.status === 'pass' ? 'bg-green-500' : 'bg-red-500');
+        document.getElementById('health-api').className = 'w-3 h-3 rounded-full ' +
+            (data.external_services?.status === 'pass' ? 'bg-green-500' : 
+             data.external_services?.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500');
+    } catch (e) {
+        console.error('Health check failed:', e);
+    }
+}
+
+async function runHealthCheck() {
+    showToast('Running health check...');
+    await runQuickHealthCheck();
+    showToast('Health check complete');
+}
+
+// ==================== EMAIL SECTION ====================
+
+function toggleEmailMaster() {
+    emailsEnabled = document.getElementById('email-master-toggle').checked;
+    const statusEl = document.getElementById('email-global-status');
+    if (statusEl) {
+        statusEl.textContent = emailsEnabled ? 'ENABLED' : 'DISABLED';
+        statusEl.className = 'text-sm font-medium ' + (emailsEnabled ? 'text-green-600' : 'text-red-600');
+    }
+    
+    // Save to server
+    fetch(`${API}/api/settings/email-enabled`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ enabled: emailsEnabled })
+    }).catch(e => console.warn('Could not save email setting:', e));
+    
+    showToast(emailsEnabled ? 'Emails enabled' : 'Emails disabled');
+}
+
+async function loadEmailSettings() {
+    try {
+        const res = await fetch(`${API}/api/email/config`);
+        const config = await res.json();
+        
+        if (config.smtp_host) document.getElementById('smtp-host').value = config.smtp_host;
+        if (config.smtp_port) document.getElementById('smtp-port').value = config.smtp_port;
+        if (config.smtp_user) document.getElementById('smtp-user').value = config.smtp_user;
+        if (config.from_name) document.getElementById('smtp-from-name').value = config.from_name;
+        // Backend stores reply_to, frontend displays as from_email
+        const fromEmail = config.reply_to || config.from_email || config.smtp_user || '';
+        document.getElementById('smtp-from-email').value = fromEmail;
+        
+        // Update master toggle - check is_active field
+        emailsEnabled = config.is_active === 1 || config.is_active === true || config.enabled === true;
+        document.getElementById('email-master-toggle').checked = emailsEnabled;
+        const statusEl = document.getElementById('email-global-status');
+        if (statusEl) {
+            statusEl.textContent = emailsEnabled ? 'ENABLED' : 'DISABLED';
+            statusEl.className = 'text-sm font-medium ' + (emailsEnabled ? 'text-green-600' : 'text-red-600');
+        }
+        
+        // Load templates
+        await loadEmailTemplates();
+    } catch (e) {
+        console.error('Failed to load email settings:', e);
+    }
+}
+
+async function saveEmailSettings() {
+    try {
+        const config = {
+            smtp_host: document.getElementById('smtp-host').value,
+            smtp_port: parseInt(document.getElementById('smtp-port').value) || 587,
+            smtp_user: document.getElementById('smtp-user').value,
+            smtp_password: document.getElementById('smtp-pass').value,
+            from_name: document.getElementById('smtp-from-name').value,
+            reply_to: document.getElementById('smtp-from-email').value,
+            is_active: emailsEnabled ? 1 : 0
+        };
+        
+        const res = await fetch(`${API}/api/email/config`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config)
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            showToast('Email settings saved');
+        } else {
+            showToast('Error: ' + (data.error || 'Failed to save'), 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function testEmailSettings() {
+    const testEmail = prompt('Enter email address to send test to:');
+    if (!testEmail) return;
+    
+    try {
+        const res = await fetch(`${API}/api/email/test`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ recipient: testEmail })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            showToast('Test email sent!');
+        } else {
+            showToast('Error: ' + (data.error || 'Failed to send'), 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function loadEmailTemplates() {
+    try {
+        const res = await fetch(`${API}/api/email/templates`);
+        const templates = await res.json();
+        
+        const list = document.getElementById('email-templates-list');
+        if (templates.length === 0) {
+            list.innerHTML = `
+                <div class="border rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="font-medium">Welcome Email</h3>
+                            <p class="text-sm text-gray-500">Sent to restaurants when they are first listed</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="editTemplate('welcome')" class="text-sm text-spot-burgundy hover:underline">Edit</button>
+                            <button onclick="previewTemplate('welcome')" class="text-sm text-gray-500 hover:underline">Preview</button>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">Default template</div>
+                </div>
+            `;
+        } else {
+            list.innerHTML = templates.map(t => `
+                <div class="border rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="font-medium">${t.name}</h3>
+                            <p class="text-sm text-gray-500">${t.description || ''}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="editTemplate('${t.id}')" class="text-sm text-spot-burgundy hover:underline">Edit</button>
+                            <button onclick="previewTemplate('${t.id}')" class="text-sm text-gray-500 hover:underline">Preview</button>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">Last updated: ${t.updated_at || 'Never'}</div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        console.error('Failed to load templates:', e);
+    }
+}
+
+function editTemplate(templateId) {
+    // Open template editor modal (to be implemented with a proper editor)
+    showToast('Template editor coming soon. Use the old dashboard (?v=1) for now.');
+}
+
+function previewTemplate(templateId) {
+    showToast('Template preview coming soon');
+}
+
+function createNewTemplate() {
+    showToast('Template creation coming soon');
+}
+
+async function mergeRegionDuplicates() {
+    if (!confirm('This will merge duplicate city entries. Continue?')) return;
+    
+    try {
+        const res = await fetch(`${API}/api/regions/merge-duplicates`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast(`Merged ${data.merged || 0} duplicates`);
+            loadCities();
+        } else {
+            showToast('Error: ' + (data.error || 'Merge failed'), 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+// ==================== UTILITIES ====================
+
+function showToast(msg, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transform transition-all z-50 ${
+        type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-800 text-white'
+    }`;
+    
+    setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+    }, 3000);
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ==================== WEIGHTS SECTION ====================
+
+let weightsData = {};
+
+async function loadWeights() {
+    try {
+        const res = await fetch(`${API}/api/ranking/weights`);
+        weightsData = await res.json();
+        
+        // Set slider values
+        document.getElementById('weight-google').value = (weightsData.weight_google || 0.25) * 100;
+        document.getElementById('weight-yelp').value = (weightsData.weight_yelp || 0.20) * 100;
+        document.getElementById('weight-tripadvisor').value = (weightsData.weight_tripadvisor || 0.25) * 100;
+        document.getElementById('weight-user-reviews').value = (weightsData.weight_user_reviews || 0.15) * 100;
+        document.getElementById('weight-sentiment').value = (weightsData.weight_sentiment || 0.10) * 100;
+        document.getElementById('weight-quality').value = (weightsData.weight_data_quality || 0.05) * 100;
+        
+        // Text vs stars
+        document.getElementById('weight-text-sentiment').value = (weightsData.weight_text_sentiment || 0.5) * 100;
+        
+        // Thresholds
+        document.getElementById('min-reviews-threshold').value = weightsData.min_reviews_threshold || 5;
+        document.getElementById('min-rating-display').value = weightsData.min_rating_display || 4.0;
+        
+        // Update all displays
+        updateWeightDisplay('google');
+        updateWeightDisplay('yelp');
+        updateWeightDisplay('tripadvisor');
+        updateWeightDisplay('user-reviews');
+        updateWeightDisplay('sentiment');
+        updateWeightDisplay('quality');
+        updateTextSentimentDisplay();
+        updateWeightsTotal();
+        
+        // Load preview
+        loadWeightsPreview();
+    } catch (e) {
+        console.error('Failed to load weights:', e);
+    }
+}
+
+function updateWeightDisplay(type) {
+    const slider = document.getElementById(`weight-${type}`);
+    const display = document.getElementById(`weight-${type}-value`);
+    display.textContent = slider.value + '%';
+    updateWeightsTotal();
+}
+
+function updateTextSentimentDisplay() {
+    const val = parseInt(document.getElementById('weight-text-sentiment').value);
+    document.getElementById('weight-text-sentiment-value').textContent = 
+        `${val}% text / ${100 - val}% stars`;
+}
+
+function updateWeightsTotal() {
+    const google = parseInt(document.getElementById('weight-google').value);
+    const yelp = parseInt(document.getElementById('weight-yelp').value);
+    const tripadvisor = parseInt(document.getElementById('weight-tripadvisor').value);
+    const userReviews = parseInt(document.getElementById('weight-user-reviews').value);
+    const sentiment = parseInt(document.getElementById('weight-sentiment').value);
+    const quality = parseInt(document.getElementById('weight-quality').value);
+    
+    const total = google + yelp + tripadvisor + userReviews + sentiment + quality;
+    
+    document.getElementById('weights-total').textContent = total + '%';
+    
+    if (total !== 100) {
+        document.getElementById('weights-warning').classList.remove('hidden');
+        document.getElementById('weights-total').classList.add('text-red-500');
+    } else {
+        document.getElementById('weights-warning').classList.add('hidden');
+        document.getElementById('weights-total').classList.remove('text-red-500');
+    }
+}
+
+async function saveWeights() {
+    const weights = {
+        weight_google: parseInt(document.getElementById('weight-google').value) / 100,
+        weight_yelp: parseInt(document.getElementById('weight-yelp').value) / 100,
+        weight_tripadvisor: parseInt(document.getElementById('weight-tripadvisor').value) / 100,
+        weight_user_reviews: parseInt(document.getElementById('weight-user-reviews').value) / 100,
+        weight_sentiment: parseInt(document.getElementById('weight-sentiment').value) / 100,
+        weight_data_quality: parseInt(document.getElementById('weight-quality').value) / 100,
+        weight_text_sentiment: parseInt(document.getElementById('weight-text-sentiment').value) / 100,
+        min_reviews_threshold: parseInt(document.getElementById('min-reviews-threshold').value),
+        min_rating_display: parseFloat(document.getElementById('min-rating-display').value)
+    };
+    
+    try {
+        const res = await fetch(`${API}/api/ranking/weights`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(weights)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('Weights saved successfully');
+            loadWeightsPreview();
+        } else {
+            showToast('Error saving weights: ' + (data.error || 'Unknown error'), 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function resetWeights() {
+    document.getElementById('weight-google').value = 25;
+    document.getElementById('weight-yelp').value = 20;
+    document.getElementById('weight-tripadvisor').value = 25;
+    document.getElementById('weight-user-reviews').value = 15;
+    document.getElementById('weight-sentiment').value = 10;
+    document.getElementById('weight-quality').value = 5;
+    document.getElementById('weight-text-sentiment').value = 50;
+    document.getElementById('min-reviews-threshold').value = 5;
+    document.getElementById('min-rating-display').value = 4.0;
+    
+    updateWeightDisplay('google');
+    updateWeightDisplay('yelp');
+    updateWeightDisplay('tripadvisor');
+    updateWeightDisplay('user-reviews');
+    updateWeightDisplay('sentiment');
+    updateWeightDisplay('quality');
+    updateTextSentimentDisplay();
+    updateWeightsTotal();
+}
+
+async function recomputeWithNewWeights() {
+    if (!confirm('This will save current weights and recompute rankings for ALL restaurants. Continue?')) return;
+    
+    await saveWeights();
+    
+    showToast('Recomputing rankings...');
+    try {
+        const res = await fetch(`${API}/api/rankings/compute`, { 
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+        showToast(`Rankings recomputed for ${data.processed || 0} restaurants`);
+        loadWeightsPreview();
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function loadWeightsPreview() {
+    try {
+        const res = await fetch(`${API}/api/rankings?limit=10`);
+        const rankings = await res.json();
+        
+        const preview = document.getElementById('weights-preview');
+        if (rankings.length === 0) {
+            preview.innerHTML = '<div class="text-gray-400 text-center py-4">No restaurants ranked yet</div>';
+            return;
+        }
+        
+        preview.innerHTML = rankings.slice(0, 10).map((r, i) => `
+            <div class="flex justify-between items-center py-2 border-b last:border-0">
+                <div class="flex items-center gap-3">
+                    <span class="w-6 text-center font-medium text-gray-500">${i + 1}</span>
+                    <div>
+                        <div class="font-medium text-sm">${r.name}</div>
+                        <div class="text-xs text-gray-500">${r.city || r.canton || ''}</div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="font-medium">${(r.composite_score || 0).toFixed(2)}</div>
+                    <div class="text-xs text-gray-500">
+                        ${r.sentiment_score !== null ? `Sentiment: ${parseFloat(r.sentiment_score).toFixed(2)}` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load preview:', e);
+    }
+}
+
+// ==================== ADVANCED SECTION ====================
+
+async function loadAdvanced() {
+    // Load city list for recompute dropdown
+    try {
+        const res = await fetch(`${API}/api/regions`);
+        const cities = await res.json();
+        const select = document.getElementById('recompute-city-select');
+        select.innerHTML = '<option value="">Select city...</option>' + 
+            cities.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+    } catch (e) {
+        console.error('Failed to load cities for advanced:', e);
+    }
+}
+
+async function reanalyzeAllReviews() {
+    if (!confirm('This will reanalyze all reviews with NLP sentiment analysis. This may take several minutes. Continue?')) return;
+    
+    showToast('Reanalyzing reviews...');
+    try {
+        const res = await fetch(`${API}/api/sentiment/reanalyze`, { method: 'POST' });
+        const data = await res.json();
+        showToast(`Reanalyzed ${data.processed || 0} reviews`);
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function openSentimentTester() {
+    document.getElementById('sentiment-modal').classList.remove('hidden');
+    document.getElementById('sentiment-test-text').value = '';
+    document.getElementById('sentiment-result').classList.add('hidden');
+}
+
+function closeSentimentModal() {
+    document.getElementById('sentiment-modal').classList.add('hidden');
+}
+
+async function analyzeSentiment() {
+    const text = document.getElementById('sentiment-test-text').value.trim();
+    if (!text) {
+        showToast('Please enter text to analyze', 'error');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/api/sentiment/analyze`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        
+        document.getElementById('sent-polarity').textContent = (data.polarity || 0).toFixed(3);
+        document.getElementById('sent-subjectivity').textContent = (data.subjectivity || 0).toFixed(3);
+        document.getElementById('sent-food').textContent = (data.aspects?.food || 0).toFixed(2);
+        document.getElementById('sent-service').textContent = (data.aspects?.service || 0).toFixed(2);
+        document.getElementById('sent-ambiance').textContent = (data.aspects?.ambiance || 0).toFixed(2);
+        document.getElementById('sent-value').textContent = (data.aspects?.value || 0).toFixed(2);
+        document.getElementById('sentiment-result').classList.remove('hidden');
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function openKeywordManager() {
+    document.getElementById('keyword-modal').classList.remove('hidden');
+    loadKeywords();
+}
+
+function closeKeywordModal() {
+    document.getElementById('keyword-modal').classList.add('hidden');
+}
+
+async function loadKeywords() {
+    try {
+        const res = await fetch(`${API}/api/sentiment/keywords`);
+        const keywords = await res.json();
+        
+        const list = document.getElementById('keywords-list');
+        if (keywords.length === 0) {
+            list.innerHTML = '<div class="text-gray-400 text-center py-4">No custom keywords yet</div>';
+        } else {
+            list.innerHTML = keywords.map(k => `
+                <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div>
+                        <span class="font-medium">${k.keyword}</span>
+                        <span class="text-xs ml-2 px-2 py-0.5 rounded ${k.sentiment === 'positive' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${k.sentiment}</span>
+                        <span class="text-xs ml-1 text-gray-500">${k.category}</span>
+                    </div>
+                    <button onclick="deleteKeyword(${k.id})" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        console.error('Failed to load keywords:', e);
+    }
+}
+
+async function addKeyword() {
+    const keyword = document.getElementById('keyword-text').value.trim();
+    const category = document.getElementById('keyword-category').value;
+    const sentiment = document.getElementById('keyword-sentiment').value;
+    
+    if (!keyword) {
+        showToast('Please enter a keyword', 'error');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/api/sentiment/keywords`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ keyword, category, sentiment, weight: 1.0 })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('Keyword added');
+            document.getElementById('keyword-text').value = '';
+            loadKeywords();
+        } else {
+            showToast('Error: ' + (data.error || 'Failed to add'), 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function deleteKeyword(id) {
+    try {
+        await fetch(`${API}/api/sentiment/keywords/${id}`, { method: 'DELETE' });
+        loadKeywords();
+    } catch (e) {
+        showToast('Error deleting keyword', 'error');
+    }
+}
+
+async function downloadBackup() {
+    try {
+        showToast('Generating backup...');
+        const res = await fetch(`${API}/api/backup/download`);
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `spotwego_backup_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Backup downloaded');
+        } else {
+            showToast('Backup failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function openRestoreModal() {
+    showToast('Use classic dashboard for restore (/?v=1)');
+}
+
+async function checkDuplicates() {
+    try {
+        const res = await fetch(`${API}/api/restaurants/check-duplicates`);
+        const data = await res.json();
+        showToast(`Found ${data.duplicates?.length || 0} potential duplicates`);
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function clearCostHistory() {
+    if (!confirm('Clear all API cost history? This cannot be undone.')) return;
+    
+    try {
+        await fetch(`${API}/api/costs/clear`, { method: 'POST' });
+        showToast('Cost history cleared');
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function recomputeAllRankings() {
+    if (!confirm('Recompute rankings for ALL restaurants? This may take several minutes.')) return;
+    
+    showToast('Recomputing all rankings...');
+    try {
+        const res = await fetch(`${API}/api/rankings/compute`, { method: 'POST' });
+        const data = await res.json();
+        showToast(`Recomputed rankings for ${data.count || 'all'} restaurants`);
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function recomputeCity() {
+    const code = document.getElementById('recompute-city-select').value;
+    if (!code) {
+        showToast('Select a city first', 'error');
+        return;
+    }
+    
+    showToast('Recomputing...');
+    try {
+        const res = await fetch(`${API}/api/rankings/compute`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ region: code })
+        });
+        const data = await res.json();
+        showToast(`Recomputed rankings for ${code}`);
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function analyzeWebsiteSchema() {
+    const url = document.getElementById('schema-url').value.trim();
+    if (!url) {
+        showToast('Enter a URL', 'error');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/api/website/analyze-schema`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        
+        document.getElementById('schema-result').classList.remove('hidden');
+        document.getElementById('schema-result').innerHTML = data.success 
+            ? `<div class="text-green-600">Schema detected: ${data.schema_type || 'Unknown'}</div><pre class="mt-2 text-xs overflow-auto">${JSON.stringify(data.fields || {}, null, 2)}</pre>`
+            : `<div class="text-red-600">Error: ${data.error || 'Analysis failed'}</div>`;
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function runDailyTasks() {
+    if (!confirm('Run daily automation tasks now?')) return;
+    
+    showToast('Running daily tasks...');
+    try {
+        const res = await fetch(`${API}/api/automation/daily`, { method: 'POST' });
+        const data = await res.json();
+        showToast('Daily tasks completed');
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function extractAllMissingEmails() {
+    showToast('Extracting emails...');
+    try {
+        const res = await fetch(`${API}/api/restaurants/extract-emails`, { 
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ limit: 100 })
+        });
+        const data = await res.json();
+        showToast(`Extracted ${data.extracted || 0} emails`);
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function loadDemoData() {
+    if (!confirm('Load demo data? This will add sample restaurants.')) return;
+    
+    try {
+        const res = await fetch(`${API}/api/demo/load`, { method: 'POST' });
+        const data = await res.json();
+        showToast('Demo data loaded');
+        loadCities();
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+// ==================== HEALTH CHECK MODAL ====================
+
+let lastHealthData = null;
+
+function openHealthModal() {
+    document.getElementById('health-modal').classList.remove('hidden');
+    if (lastHealthData) {
+        renderHealthDetails(lastHealthData);
+    } else {
+        runFullHealthCheck();
+    }
+}
+
+function closeHealthModal() {
+    document.getElementById('health-modal').classList.add('hidden');
+}
+
+async function runFullHealthCheck() {
+    try {
+        document.getElementById('health-detail-content').innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-spot-burgundy border-t-transparent"></div><p class="mt-2 text-gray-500">Running health check...</p></div>';
+        
+        const res = await fetch(`${API}/api/health/full`);
+        const data = await res.json();
+        lastHealthData = data;
+        
+        renderHealthDetails(data);
+        
+        // Also update the simple indicators on monitoring page
+        updateSimpleHealthIndicators(data);
+        
+    } catch (e) {
+        document.getElementById('health-detail-content').innerHTML = `<div class="text-red-600">Error running health check: ${e.message}</div>`;
+    }
+}
+
+function renderHealthDetails(data) {
+    const content = document.getElementById('health-detail-content');
+    let html = '';
+    
+    // Database
+    html += `<div class="p-4 rounded-lg ${data.database?.status === 'ok' ? 'bg-green-50' : 'bg-red-50'}">
+        <h3 class="font-medium flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full ${data.database?.status === 'ok' ? 'bg-green-500' : 'bg-red-500'}"></span>
+            Database
+        </h3>
+        <p class="text-sm mt-1 ${data.database?.status === 'ok' ? 'text-green-700' : 'text-red-700'}">
+            ${data.database?.message || (data.database?.status === 'ok' ? 'Connected' : 'Connection failed')}
+        </p>
+    </div>`;
+    
+    // Tables
+    if (data.tables) {
+        const tableIssues = Object.entries(data.tables).filter(([k, v]) => v !== 'ok');
+        html += `<div class="p-4 rounded-lg ${tableIssues.length === 0 ? 'bg-green-50' : 'bg-yellow-50'}">
+            <h3 class="font-medium">Database Tables</h3>
+            <p class="text-sm mt-1">${Object.keys(data.tables).length} tables checked, ${tableIssues.length} issues</p>
+            ${tableIssues.length > 0 ? `<ul class="text-sm mt-2 text-yellow-700">${tableIssues.map(([k, v]) => `<li>${k}: ${v}</li>`).join('')}</ul>` : ''}
+        </div>`;
+    }
+    
+    // External Services
+    if (data.external_services) {
+        html += `<div class="p-4 rounded-lg bg-gray-50">
+            <h3 class="font-medium mb-2">External Services</h3>
+            <div class="space-y-2">`;
+        
+        for (const [service, info] of Object.entries(data.external_services)) {
+            const isOk = info.status === 'ok' || info.status === 'configured';
+            html += `<div class="flex items-start gap-2">
+                <span class="w-3 h-3 rounded-full mt-1 ${isOk ? 'bg-green-500' : info.status === 'not_configured' ? 'bg-gray-400' : 'bg-red-500'}"></span>
+                <div>
+                    <span class="font-medium">${service}</span>
+                    <p class="text-sm text-gray-600">${info.message || info.status}</p>
+                    ${info.error ? `<p class="text-sm text-red-600 mt-1">${info.error}</p>` : ''}
+                </div>
+            </div>`;
+        }
+        
+        html += `</div></div>`;
+    }
+    
+    // Data Integrity
+    if (data.data_integrity) {
+        html += `<div class="p-4 rounded-lg bg-gray-50">
+            <h3 class="font-medium mb-2">Data Integrity</h3>
+            <div class="grid grid-cols-2 gap-2 text-sm">`;
+        
+        for (const [key, value] of Object.entries(data.data_integrity)) {
+            html += `<div><span class="text-gray-500">${key}:</span> ${typeof value === 'object' ? JSON.stringify(value) : value}</div>`;
+        }
+        
+        html += `</div></div>`;
+    }
+    
+    // Summary
+    if (data.summary) {
+        const status = data.summary.overall_status;
+        html += `<div class="p-4 rounded-lg ${status === 'healthy' ? 'bg-green-100' : status === 'warning' ? 'bg-yellow-100' : 'bg-red-100'}">
+            <h3 class="font-medium">Summary: ${status?.toUpperCase()}</h3>
+            ${data.summary.issues?.length > 0 ? `<ul class="text-sm mt-2">${data.summary.issues.map(i => `<li>- ${i}</li>`).join('')}</ul>` : '<p class="text-sm mt-1">No issues detected</p>'}
+        </div>`;
+    }
+    
+    content.innerHTML = html;
+}
+
+function updateSimpleHealthIndicators(data) {
+    // Database
+    const dbEl = document.getElementById('health-db');
+    if (dbEl) dbEl.className = `w-3 h-3 rounded-full ${data.database?.status === 'ok' ? 'bg-green-500' : 'bg-red-500'}`;
+    
+    // Google API
+    const googleEl = document.getElementById('health-google');
+    if (googleEl) {
+        const googleStatus = data.external_services?.google_places?.status;
+        googleEl.className = `w-3 h-3 rounded-full ${googleStatus === 'ok' || googleStatus === 'configured' ? 'bg-green-500' : googleStatus === 'not_configured' ? 'bg-gray-400' : 'bg-red-500'}`;
+    }
+    
+    // Website
+    const webEl = document.getElementById('health-website');
+    if (webEl) {
+        const webStatus = data.external_services?.website?.status;
+        webEl.className = `w-3 h-3 rounded-full ${webStatus === 'ok' || webStatus === 'configured' ? 'bg-green-500' : webStatus === 'not_configured' ? 'bg-gray-400' : 'bg-red-500'}`;
+    }
+    
+    // Email
+    const emailEl = document.getElementById('health-email');
+    if (emailEl) {
+        const emailStatus = data.external_services?.email?.status;
+        emailEl.className = `w-3 h-3 rounded-full ${emailStatus === 'ok' || emailStatus === 'configured' ? 'bg-green-500' : emailStatus === 'not_configured' ? 'bg-gray-400' : 'bg-red-500'}`;
+    }
+}
+
+// ==================== TEMPLATE EDITOR ====================
+
+let currentTemplateId = null;
+
+function editTemplate(templateId) {
+    currentTemplateId = templateId;
+    document.getElementById('template-modal').classList.remove('hidden');
+    document.getElementById('template-modal-subtitle').textContent = templateId === 'welcome' ? 'Welcome Email' : templateId;
+    
+    loadTemplateContent(templateId);
+}
+
+async function loadTemplateContent(templateId) {
+    try {
+        const res = await fetch(`${API}/api/email/templates/${templateId}`);
+        const data = await res.json();
+        
+        document.getElementById('template-subject').value = data.subject || 'Welcome to Spotwego!';
+        document.getElementById('template-body').value = data.body || getDefaultWelcomeTemplate();
+        
+        updateTemplatePreview();
+    } catch (e) {
+        // Use default
+        document.getElementById('template-subject').value = 'Welcome to Spotwego!';
+        document.getElementById('template-body').value = getDefaultWelcomeTemplate();
+        updateTemplatePreview();
+    }
+}
+
+function getDefaultWelcomeTemplate() {
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #722F37; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .button { display: inline-block; background: #722F37; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to Spotwego!</h1>
+        </div>
+        <div class="content">
+            <p>Dear {{restaurant_name}},</p>
+            <p>Congratulations! Your restaurant has been featured on Spotwego as one of the top dining destinations in {{city}}.</p>
+            <p>With a rating of {{rating}}, you're among the best restaurants we recommend to our users.</p>
+            <p><a href="{{ranking_url}}" class="button">View Your Listing</a></p>
+            <p>Best regards,<br>The Spotwego Team</p>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
+function updateTemplatePreview() {
+    const body = document.getElementById('template-body').value;
+    const preview = body
+        .replace(/\{\{restaurant_name\}\}/g, 'Sample Restaurant')
+        .replace(/\{\{city\}\}/g, 'Geneva')
+        .replace(/\{\{rating\}\}/g, '4.7')
+        .replace(/\{\{ranking_url\}\}/g, '#');
+    
+    const frame = document.getElementById('template-preview-frame');
+    frame.srcdoc = preview;
+}
+
+function closeTemplateModal() {
+    document.getElementById('template-modal').classList.add('hidden');
+    currentTemplateId = null;
+}
+
+async function saveTemplate() {
+    const subject = document.getElementById('template-subject').value;
+    const body = document.getElementById('template-body').value;
+    
+    try {
+        const res = await fetch(`${API}/api/email/templates`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                id: currentTemplateId,
+                name: currentTemplateId === 'welcome' ? 'Welcome Email' : currentTemplateId,
+                subject,
+                body
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('Template saved');
+            closeTemplateModal();
+            loadEmailTemplates();
+        } else {
+            showToast('Error: ' + (data.error || 'Save failed'), 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function sendTestTemplateEmail() {
+    const email = prompt('Send test email to:');
+    if (!email) return;
+    
+    const subject = document.getElementById('template-subject').value;
+    const body = document.getElementById('template-body').value;
+    
+    try {
+        const res = await fetch(`${API}/api/email/test-template`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ to_email: email, subject, body })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('Test email sent');
+        } else {
+            showToast('Error: ' + (data.error || 'Send failed'), 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function previewTemplate(templateId) {
+    editTemplate(templateId);
+}
+
+// ==================== INIT ====================
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadCities();
+});
+</script>
+</body>
+</html>
