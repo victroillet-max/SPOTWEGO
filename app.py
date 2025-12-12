@@ -3431,7 +3431,6 @@ def register_routes(app):
                         rest_id = cur.lastrowid
                     
                     app.logger.debug(f"Inserted restaurant ID: {rest_id}")
-                        rest_id = cur.lastrowid
                     
                     if rest_id:
                         # Add source rating from Google
